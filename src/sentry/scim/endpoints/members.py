@@ -96,7 +96,24 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         parameters=[GLOBAL_PARAMS.ORG_SLUG, SCIM_PARAMS.MEMBER_ID],
         request=None,
         responses={
-            200: OrganizationMemberSCIMSerializer,
+            200: inline_serializer(
+                "SCIMMember",
+                fields={
+                    "schemas": serializers.CharField(),
+                    "id": serializers.CharField(),
+                    "userName": serializers.CharField(),
+                    "emails": inline_serializer(
+                        "SCIMMemberEmails",
+                        fields={
+                            "primary": serializers.BooleanField(),
+                            "value": serializers.CharField(),
+                            "type": serializers.CharField(),
+                        },
+                        many=True,
+                    ),
+                },
+                many=True,
+            ),
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,

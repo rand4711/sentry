@@ -2530,3 +2530,5 @@ ZERO_DOWNTIME_MIGRATIONS_STATEMENT_TIMEOUT = None
 # Note: The docs have this backwards. We set this to False here so that we always add check
 # constraints instead of setting the column to not null.
 ZERO_DOWNTIME_MIGRATIONS_USE_NOT_NULL = False
+
+from sentry.apidocs.extensions import *  # NOQA  # TODO: figure out better init import
