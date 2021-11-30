@@ -3,6 +3,8 @@ on:
   push:
     branches:
       - master
+      - releases/**
+  pull_request:
 
 jobs:
   build_and_deref_json:
@@ -13,12 +15,11 @@ jobs:
         python-version: [3.8.12]
 
     steps:
-      - name: Getsentry Token
-        id: getsentry
-        uses: getsentry/action-github-app-token@v1
+      - uses: actions/checkout@v2
         with:
-          app_id: ${{ secrets.SENTRY_INTERNAL_APP_ID }}
-          private_key: ${{ secrets.SENTRY_INTERNAL_APP_PRIVATE_KEY }}
+          # Avoid codecov error message related to SHA resolution:
+          # https://github.com/codecov/codecov-bash/blob/7100762afbc822b91806a6574658129fe0d23a7d/codecov#L891
+          fetch-depth: '2'
 
       - uses: actions/checkout@v2
         with:
@@ -40,6 +41,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           pip-cache-version: ${{ secrets.PIP_CACHE_VERSION }}
+          snuba: true
 
       - name: Checkout getsentry/sentry-api-schema
         if: steps.changes.outputs.api_docs == 'true'
