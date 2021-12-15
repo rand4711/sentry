@@ -43,6 +43,32 @@ from .utils import OrganizationSCIMMemberPermission, SCIMEndpoint
 
 ERR_ONLY_OWNER = "You cannot remove the only remaining owner of the organization."
 
+# "schemas": [
+#                             "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+#                         ],
+#                         "Operations": [
+#                             {
+#                                 "op": "replace",
+#                                 "value": {
+#                                     "active": false
+#                                 }
+#                             }
+#                         ]
+
+
+class SCIMPatchOperationSerializer(serializers.Serializer):
+    op = serializers.ChoiceField(choices=("replace",), required=True)
+    value = serializers.DictField(allow_empty=False)
+
+
+class SCIMPatchRequestSerializer(serializers.Serializer):
+    # we don't actually use "schemas" for anything atm but its part of the spec
+    schemas = serializers.ListField(child=serializers.CharField(), required=True)
+
+    Operations = serializers.ListField(
+        child=SCIMPatchOperationSerializer(), required=True, source="operations"
+    )
+
 
 def _scim_member_serializer_with_expansion(organization):
     """
@@ -93,13 +119,13 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
 
     @extend_schema(
         operation_id="Query an Individual Organization Member",
-        parameters=[GLOBAL_PARAMS.ORG_SLUG, SCIM_PARAMS.MEMBER_ID],
+        parameters=[SCIM_PARAMS.MEMBER_ID, GLOBAL_PARAMS.ORG_SLUG],
         request=None,
         responses={
             200: inline_serializer(
                 "SCIMMember",
                 fields={
-                    "schemas": serializers.CharField(),
+                    "schemas": serializers.ListField(serializers.CharField()),
                     "id": serializers.CharField(),
                     "userName": serializers.CharField(),
                     "emails": inline_serializer(
@@ -111,8 +137,22 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
                         },
                         many=True,
                     ),
+                    "name": inline_serializer(
+                        "Name",
+                        fields={
+                            "familyName": serializers.CharField(),
+                            "givenName": serializers.CharField(),
+                        },
+                    ),
+                    "active": serializers.BooleanField(),
+                    "meta": inline_serializer(
+                        "Meta",
+                        fields={
+                            "resourceType": serializers.CharField(),
+                        },
+                    ),
                 },
-                many=True,
+                many=False,
             ),
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
@@ -146,7 +186,33 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         )
         return Response(context)
 
-    def patch(self, request: Request, organization, member):
+    @extend_schema(
+        operation_id="Update an Organization Member's Attributes",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG, SCIM_PARAMS.MEMBER_ID],
+        request=SCIMPatchRequestSerializer,
+        responses={
+            204: RESPONSE_SUCCESS,
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Set member inactive",
+                value={
+                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+                    "Operations": [{"op": "replace", "value": {"active": False}}],
+                },
+                status_codes=["204"],
+            ),
+        ],
+    )
+    def patch(self, request: Request, organization, member)
+        """
+        Update an organization member's attributes with a SCIM PATCH Request.
+        The only supported attribute is `active`. After setting `active` to false
+        Sentry will permanently delete the Organization Member.
+        """
         operations = request.data.get("Operations", [])
         if len(operations) > 100:
             return Response(SCIM_400_TOO_MANY_PATCH_OPS_ERROR, status=400)

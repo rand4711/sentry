@@ -1,5 +1,8 @@
 from drf_spectacular.utils import OpenApiResponse
 
+RESPONSE_SUCCESS = OpenApiResponse(description="Success")
+
+
 RESPONSE_UNAUTHORIZED = OpenApiResponse(description="Unauthorized")
 
 RESPONSE_FORBIDDEN = OpenApiResponse(description="Forbidden")
