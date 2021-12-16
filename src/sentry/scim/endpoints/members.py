@@ -39,7 +39,7 @@ from .constants import (
     SCIM_409_USER_EXISTS,
     MemberPatchOps,
 )
-from .utils import OrganizationSCIMMemberPermission, SCIMEndpoint
+from .utils import OrganizationSCIMMemberPermission, SCIMEndpoint, SCIMQueryParamSerializer
 
 ERR_ONLY_OWNER = "You cannot remove the only remaining owner of the organization."
 
@@ -54,6 +54,36 @@ ERR_ONLY_OWNER = "You cannot remove the only remaining owner of the organization
 #                                 }
 #                             }
 #                         ]
+
+
+SCIMMemberSerializerFields = {
+    "schemas": serializers.ListField(serializers.CharField()),
+    "id": serializers.CharField(),
+    "userName": serializers.CharField(),
+    "emails": inline_serializer(
+        "SCIMMemberEmails",
+        fields={
+            "primary": serializers.BooleanField(),
+            "value": serializers.CharField(),
+            "type": serializers.CharField(),
+        },
+        many=True,
+    ),
+    "name": inline_serializer(
+        "Name",
+        fields={
+            "familyName": serializers.CharField(),
+            "givenName": serializers.CharField(),
+        },
+    ),
+    "active": serializers.BooleanField(),
+    "meta": inline_serializer(
+        "Meta",
+        fields={
+            "resourceType": serializers.CharField(),
+        },
+    ),
+}
 
 
 class SCIMPatchOperationSerializer(serializers.Serializer):
@@ -123,35 +153,8 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         request=None,
         responses={
             200: inline_serializer(
-                "SCIMMember",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "id": serializers.CharField(),
-                    "userName": serializers.CharField(),
-                    "emails": inline_serializer(
-                        "SCIMMemberEmails",
-                        fields={
-                            "primary": serializers.BooleanField(),
-                            "value": serializers.CharField(),
-                            "type": serializers.CharField(),
-                        },
-                        many=True,
-                    ),
-                    "name": inline_serializer(
-                        "Name",
-                        fields={
-                            "familyName": serializers.CharField(),
-                            "givenName": serializers.CharField(),
-                        },
-                    ),
-                    "active": serializers.BooleanField(),
-                    "meta": inline_serializer(
-                        "Meta",
-                        fields={
-                            "resourceType": serializers.CharField(),
-                        },
-                    ),
-                },
+                "SCIMMemberDetails",
+                fields=SCIMMemberSerializerFields,
                 many=False,
             ),
             401: RESPONSE_UNAUTHORIZED,
@@ -249,10 +252,14 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         return Response(status=204)
 
 
+@declare_public(methods={"GET"})
 class OrganizationSCIMMemberIndex(SCIMEndpoint):
     permission_classes = (OrganizationSCIMMemberPermission,)
 
     def get(self, request: Request, organization) -> Response:
+        """
+        Returns a paginated list of members bound to a organization with a SCIM Users GET Request.
+        """
         # note that SCIM doesn't care about changing results as they're queried
 
         query_params = self.get_query_parameters(request)
