@@ -252,10 +252,62 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         return Response(status=204)
 
 
-@declare_public(methods={"GET"})
+@declare_public(methods={"GET", "POST"})
 class OrganizationSCIMMemberIndex(SCIMEndpoint):
     permission_classes = (OrganizationSCIMMemberPermission,)
 
+    @extend_schema(
+        operation_id="List an Organization's Members",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG, SCIMQueryParamSerializer],
+        request=None,
+        responses={
+            200: inline_serializer(
+                "SCIMMemberIndex",
+                fields={
+                    "schemas": serializers.ListField(serializers.CharField()),
+                    "id": serializers.CharField(),
+                    "userName": serializers.CharField(),
+                    "emails": inline_serializer(
+                        "zSCIMMemberEmails",
+                        fields={
+                            "primary": serializers.BooleanField(),
+                            "value": serializers.CharField(),
+                            "type": serializers.CharField(),
+                        },
+                        many=True,
+                    ),
+                    "name": inline_serializer(
+                        "zName",
+                        fields={
+                            "familyName": serializers.CharField(),
+                            "givenName": serializers.CharField(),
+                        },
+                    ),
+                    "active": serializers.BooleanField(),
+                    "meta": inline_serializer(
+                        "zMeta",
+                        fields={
+                            "resourceType": serializers.CharField(),
+                        },
+                    ),
+                },
+                many=True,
+            ),
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Set member inactive",
+                value={
+                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+                    "Operations": [{"op": "replace", "value": {"active": False}}],
+                },
+                status_codes=["204"],
+            ),
+        ],
+    )
     def get(self, request: Request, organization) -> Response:
         """
         Returns a paginated list of members bound to a organization with a SCIM Users GET Request.
@@ -299,7 +351,65 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
             cursor_cls=SCIMCursor,
         )
 
+<<<<<<< HEAD
     def post(self, request: Request, organization) -> Response:
+=======
+    @extend_schema(
+        operation_id="Provision a New Organization Member",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG],
+        request=inline_serializer("SCIMMemberProvision", fields={
+
+        }),
+        responses={
+            200: inline_serializer(
+                "SCIMMemberIndex",
+                fields={
+                    "schemas": serializers.ListField(serializers.CharField()),
+                    "id": serializers.CharField(),
+                    "userName": serializers.CharField(),
+                    "emails": inline_serializer(
+                        "zSCIMMemberEmails",
+                        fields={
+                            "primary": serializers.BooleanField(),
+                            "value": serializers.CharField(),
+                            "type": serializers.CharField(),
+                        },
+                        many=True,
+                    ),
+                    "name": inline_serializer(
+                        "zName",
+                        fields={
+                            "familyName": serializers.CharField(),
+                            "givenName": serializers.CharField(),
+                        },
+                    ),
+                    "active": serializers.BooleanField(),
+                    "meta": inline_serializer(
+                        "zMeta",
+                        fields={
+                            "resourceType": serializers.CharField(),
+                        },
+                    ),
+                },
+                many=True,
+            ),
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Set member inactive",
+                value={
+                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+                    "Operations": [{"op": "replace", "value": {"active": False}}],
+                },
+                status_codes=["204"],
+            ),
+        ],
+    )
+    def post(self, request, organization):
+>>>>>>> e95ebaf6d7 (further endpoint doc)
         serializer = OrganizationMemberSerializer(
             data={
                 "email": request.data.get("userName"),
