@@ -210,7 +210,7 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
             ),
         ],
     )
-    def patch(self, request: Request, organization, member)
+    def patch(self, request: Request, organization, member):
         """
         Update an organization member's attributes with a SCIM PATCH Request.
         The only supported attribute is `active`. After setting `active` to false
@@ -351,24 +351,19 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
             cursor_cls=SCIMCursor,
         )
 
-<<<<<<< HEAD
-    def post(self, request: Request, organization) -> Response:
-=======
     @extend_schema(
         operation_id="Provision a New Organization Member",
         parameters=[GLOBAL_PARAMS.ORG_SLUG],
-        request=inline_serializer("SCIMMemberProvision", fields={
-
-        }),
+        request=inline_serializer("SCIMMemberProvision", fields={}),
         responses={
             200: inline_serializer(
-                "SCIMMemberIndex",
+                "SCIMMemberIndex2",
                 fields={
                     "schemas": serializers.ListField(serializers.CharField()),
                     "id": serializers.CharField(),
                     "userName": serializers.CharField(),
                     "emails": inline_serializer(
-                        "zSCIMMemberEmails",
+                        "zSCIMMemberEmails2",
                         fields={
                             "primary": serializers.BooleanField(),
                             "value": serializers.CharField(),
@@ -377,7 +372,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
                         many=True,
                     ),
                     "name": inline_serializer(
-                        "zName",
+                        "zName2",
                         fields={
                             "familyName": serializers.CharField(),
                             "givenName": serializers.CharField(),
@@ -385,7 +380,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
                     ),
                     "active": serializers.BooleanField(),
                     "meta": inline_serializer(
-                        "zMeta",
+                        "zMeta2",
                         fields={
                             "resourceType": serializers.CharField(),
                         },
@@ -408,8 +403,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
             ),
         ],
     )
-    def post(self, request, organization):
->>>>>>> e95ebaf6d7 (further endpoint doc)
+    def post(self, request: Request, organization) -> Response:
         serializer = OrganizationMemberSerializer(
             data={
                 "email": request.data.get("userName"),
