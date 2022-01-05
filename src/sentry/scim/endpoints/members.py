@@ -299,12 +299,27 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
         },
         examples=[  # TODO: see if this can go on serializer object instead
             OpenApiExample(
-                "Set member inactive",
+                "List an Organization's Members",
                 value={
-                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
-                    "Operations": [{"op": "replace", "value": {"active": False}}],
+                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+                    "totalResults": 1,
+                    "startIndex": 1,
+                    "itemsPerPage": 1,
+                    "Resources": [
+                        {
+                            "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+                            "id": "102",
+                            "userName": "test.user@okta.local",
+                            "emails": [
+                                {"primary": True, "value": "test.user@okta.local", "type": "work"}
+                            ],
+                            "name": {"familyName": "N/A", "givenName": "N/A"},
+                            "active": True,
+                            "meta": {"resourceType": "User"},
+                        }
+                    ],
                 },
-                status_codes=["204"],
+                status_codes=["200"],
             ),
         ],
     )
