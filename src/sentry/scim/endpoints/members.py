@@ -265,33 +265,41 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
                 "SCIMMemberIndex",
                 fields={
                     "schemas": serializers.ListField(serializers.CharField()),
-                    "id": serializers.CharField(),
-                    "userName": serializers.CharField(),
-                    "emails": inline_serializer(
-                        "zSCIMMemberEmails",
+                    "totalResults": serializers.IntegerField(),
+                    "startIndex": serializers.IntegerField(),
+                    "itemsPerPage": serializers.IntegerField(),
+                    "Resources": inline_serializer(
+                        "Resources",
                         fields={
-                            "primary": serializers.BooleanField(),
-                            "value": serializers.CharField(),
-                            "type": serializers.CharField(),
+                            "id": serializers.CharField(),
+                            "userName": serializers.CharField(),
+                            "emails": inline_serializer(
+                                "zSCIMMemberEmails",
+                                fields={
+                                    "primary": serializers.BooleanField(),
+                                    "value": serializers.CharField(),
+                                    "type": serializers.CharField(),
+                                },
+                                many=True,
+                            ),
+                            "name": inline_serializer(
+                                "zName",
+                                fields={
+                                    "familyName": serializers.CharField(),
+                                    "givenName": serializers.CharField(),
+                                },
+                            ),
+                            "active": serializers.BooleanField(),
+                            "meta": inline_serializer(
+                                "zMeta",
+                                fields={
+                                    "resourceType": serializers.CharField(),
+                                },
+                            ),
                         },
                         many=True,
                     ),
-                    "name": inline_serializer(
-                        "zName",
-                        fields={
-                            "familyName": serializers.CharField(),
-                            "givenName": serializers.CharField(),
-                        },
-                    ),
-                    "active": serializers.BooleanField(),
-                    "meta": inline_serializer(
-                        "zMeta",
-                        fields={
-                            "resourceType": serializers.CharField(),
-                        },
-                    ),
                 },
-                many=True,
             ),
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
@@ -371,7 +379,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
         parameters=[GLOBAL_PARAMS.ORG_SLUG],
         request=inline_serializer("SCIMMemberProvision", fields={}),
         responses={
-            200: inline_serializer(
+            201: inline_serializer(
                 "SCIMMemberIndex2",
                 fields={
                     "schemas": serializers.ListField(serializers.CharField()),
@@ -411,14 +419,26 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
             OpenApiExample(
                 "Set member inactive",
                 value={
-                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
-                    "Operations": [{"op": "replace", "value": {"active": False}}],
+                    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+                    "id": "242",
+                    "userName": "test.user@okta.local",
+                    "emails": [{"primary": True, "value": "test.user@okta.local", "type": "work"}],
+                    "active": True,
+                    "name": {"familyName": "N/A", "givenName": "N/A"},
+                    "meta": {"resourceType": "User"},
                 },
-                status_codes=["204"],
+                status_codes=["201"],
             ),
         ],
     )
     def post(self, request: Request, organization) -> Response:
+        """
+        Create a new Organization Member via a SCIM Users POST Request.
+        `userName` should be set to the SAML field used for email, and active should be set to `true`.
+        Sentry's SCIM API doesn't currently support setting users to inactive
+        and the member will be deleted if inactive is set to `false`.
+        The API also does not support setting secondary emails.
+        """
         serializer = OrganizationMemberSerializer(
             data={
                 "email": request.data.get("userName"),

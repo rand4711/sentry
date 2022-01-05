@@ -34,7 +34,7 @@ build-js-po: node-version-check
 
 build-spectacular-docs:
 	@echo "--> Building drf-spectacular openapi spec (combines with deprecated docs)"
-	@OPENAPIGENERATE=1 sentry django spectacular --file tests/apidocs/openapi-spectacular.json --format openapi-json --validate --fail-on-warn
+	@OPENAPIGENERATE=1 SENTRY_DEVENV_NO_REPORT=1 sentry django spectacular --file tests/apidocs/openapi-spectacular.json --format openapi-json --validate --fail-on-warn
 
 build-deprecated-docs:
 	@echo "--> Building deprecated openapi spec from json files"
@@ -45,7 +45,7 @@ build-api-docs: build-deprecated-docs build-spectacular-docs
 	yarn deref-api-docs
 
 watch-api-docs:
-	@node api-docs/watch.js
+	@SENTRY_DEVENV_NO_REPORT=1 node api-docs/watch.js
 
 build: locale
 
