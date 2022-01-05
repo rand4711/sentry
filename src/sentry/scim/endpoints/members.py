@@ -43,48 +43,6 @@ from .utils import OrganizationSCIMMemberPermission, SCIMEndpoint, SCIMQueryPara
 
 ERR_ONLY_OWNER = "You cannot remove the only remaining owner of the organization."
 
-# "schemas": [
-#                             "urn:ietf:params:scim:api:messages:2.0:PatchOp"
-#                         ],
-#                         "Operations": [
-#                             {
-#                                 "op": "replace",
-#                                 "value": {
-#                                     "active": false
-#                                 }
-#                             }
-#                         ]
-
-
-SCIMMemberSerializerFields = {
-    "schemas": serializers.ListField(serializers.CharField()),
-    "id": serializers.CharField(),
-    "userName": serializers.CharField(),
-    "emails": inline_serializer(
-        "SCIMMemberEmails",
-        fields={
-            "primary": serializers.BooleanField(),
-            "value": serializers.CharField(),
-            "type": serializers.CharField(),
-        },
-        many=True,
-    ),
-    "name": inline_serializer(
-        "Name",
-        fields={
-            "familyName": serializers.CharField(),
-            "givenName": serializers.CharField(),
-        },
-    ),
-    "active": serializers.BooleanField(),
-    "meta": inline_serializer(
-        "Meta",
-        fields={
-            "resourceType": serializers.CharField(),
-        },
-    ),
-}
-
 
 class SCIMPatchOperationSerializer(serializers.Serializer):
     op = serializers.ChoiceField(choices=("replace",), required=True)
@@ -154,7 +112,34 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         responses={
             200: inline_serializer(
                 "SCIMMemberDetails",
-                fields=SCIMMemberSerializerFields,
+                fields={
+                    "schemas": serializers.ListField(serializers.CharField()),
+                    "id": serializers.CharField(),
+                    "userName": serializers.CharField(),
+                    "emails": inline_serializer(
+                        "SCIMMemberEmails",
+                        fields={
+                            "primary": serializers.BooleanField(),
+                            "value": serializers.CharField(),
+                            "type": serializers.CharField(),
+                        },
+                        many=True,
+                    ),
+                    "name": inline_serializer(
+                        "Name",
+                        fields={
+                            "familyName": serializers.CharField(),
+                            "givenName": serializers.CharField(),
+                        },
+                    ),
+                    "active": serializers.BooleanField(),
+                    "meta": inline_serializer(
+                        "Meta",
+                        fields={
+                            "resourceType": serializers.CharField(),
+                        },
+                    ),
+                },
                 many=False,
             ),
             401: RESPONSE_UNAUTHORIZED,
