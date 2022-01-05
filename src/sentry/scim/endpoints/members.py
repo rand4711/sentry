@@ -271,6 +271,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
                     "Resources": inline_serializer(
                         "Resources",
                         fields={
+                            "schemas": serializers.ListField(serializers.CharField()),
                             "id": serializers.CharField(),
                             "userName": serializers.CharField(),
                             "emails": inline_serializer(
@@ -409,7 +410,6 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
                         },
                     ),
                 },
-                many=True,
             ),
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
@@ -417,7 +417,8 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
         },
         examples=[  # TODO: see if this can go on serializer object instead
             OpenApiExample(
-                "Set member inactive",
+                "Provision new member",
+                response_only=True,
                 value={
                     "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
                     "id": "242",

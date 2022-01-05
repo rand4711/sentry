@@ -89,13 +89,17 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
             200: inline_serializer(
                 "SCIMGroupIndex",
                 fields={
+                    "schemas": serializers.ListField(serializers.CharField()),
+                    "totalResults": serializers.IntegerField(),
+                    "startIndex": serializers.IntegerField(),
+                    "itemsPerPage": serializers.IntegerField(),
                     "Resources": inline_serializer(
                         "Resources2",
                         fields={
                             "schemas": serializers.ListField(serializers.CharField()),
                             "displayName": serializers.CharField(),
                             "members": serializers.ListField(serializers.IntegerField()),
-                            "id": serializers.IntegerField(),
+                            "id": serializers.CharField(),
                             "meta": inline_serializer(
                                 "zMeta5",
                                 fields={
@@ -106,7 +110,6 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
                         many=True,
                     ),
                 },
-                many=True,
             ),
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
@@ -181,12 +184,12 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
         ),
         responses={
             201: inline_serializer(
-                "SCIMTeamProvision",
+                "SCIMTeamProvision2",
                 fields={
                     "schemas": serializers.ListField(serializers.CharField()),
                     "displayName": serializers.CharField(),
                     "members": serializers.ListField(serializers.IntegerField()),
-                    "id": serializers.IntegerField(),
+                    "id": serializers.CharField(),
                     "meta": inline_serializer(
                         "zMeta4",
                         fields={
@@ -202,6 +205,7 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
         examples=[  # TODO: see if this can go on serializer object instead
             OpenApiExample(
                 "provisionTeam",
+                response_only=True,
                 value={
                     "schemas": ["urn:ietf:params:scim:schemas:core:2.0:Group"],
                     "displayName": "Test SCIMv2",
@@ -260,7 +264,7 @@ class OrganizationSCIMTeamDetails(SCIMEndpoint, TeamDetailsEndpoint):
                     "schemas": serializers.ListField(serializers.CharField()),
                     "displayName": serializers.CharField(),
                     "members": serializers.ListField(serializers.IntegerField()),
-                    "id": serializers.IntegerField(),
+                    "id": serializers.CharField(),
                     "meta": inline_serializer(
                         "zMeta6",
                         fields={
@@ -363,16 +367,6 @@ class OrganizationSCIMTeamDetails(SCIMEndpoint, TeamDetailsEndpoint):
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,
         },
-        examples=[  # TODO: see if this can go on serializer object instead
-            OpenApiExample(
-                "Set member inactive",
-                value={
-                    "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
-                    "Operations": [{"op": "replace", "value": {"active": False}}],
-                },
-                status_codes=["204"],
-            ),
-        ],
     )
     def patch(self, request: Request, organization, team):
         """
