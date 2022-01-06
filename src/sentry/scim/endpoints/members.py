@@ -293,7 +293,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
     @extend_schema(
         operation_id="Provision a New Organization Member",
         parameters=[GLOBAL_PARAMS.ORG_SLUG],
-        request=inline_serializer("SCIMMemberProvision", fields={}),
+        request=inline_serializer("SCIMMemberProvision", fields={}),  # TODO: add this in
         responses={
             201: OrganizationMemberSCIMSerializer,
             401: RESPONSE_UNAUTHORIZED,

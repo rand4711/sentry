@@ -152,7 +152,7 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
         operation_id="Provision a New Team",
         parameters=[GLOBAL_PARAMS.ORG_SLUG],
         request=inline_serializer(
-            "SCIMTeam",
+            "SCIMTeamRequestBody",
             fields={
                 "schemas": serializers.ListField(serializers.CharField()),
                 "displayName": serializers.CharField(),

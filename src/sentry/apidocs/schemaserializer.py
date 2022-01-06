@@ -12,7 +12,7 @@ PUBLIC_SERIALIZERS = set()
 
 
 # TODO: map things in registry
-def is_optional(field):
+def is_optional(field) -> bool:
     # https://stackoverflow.com/a/58841311
     return get_origin(field) is Union and type(None) in get_args(field)
 
@@ -71,7 +71,7 @@ def map_serializer(serializer):
     excluded_fields = get_override(serializer, "exclude_fields", [])
 
     if type(sig.return_annotation) != _TypedDictMeta:
-        raise Exception("wrong type!")
+        raise Exception("wrong type!, expecting a TypedDict")
 
     properties = map_typedict(sig.return_annotation, excluded_fields)
 
