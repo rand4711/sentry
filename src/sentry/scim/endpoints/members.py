@@ -1,3 +1,5 @@
+from typing import TypedDict
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -110,38 +112,7 @@ class OrganizationSCIMMemberDetails(SCIMEndpoint, OrganizationMemberEndpoint):
         parameters=[SCIM_PARAMS.MEMBER_ID, GLOBAL_PARAMS.ORG_SLUG],
         request=None,
         responses={
-            200: inline_serializer(
-                "SCIMMemberDetails",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "id": serializers.CharField(),
-                    "userName": serializers.CharField(),
-                    "emails": inline_serializer(
-                        "SCIMMemberEmails",
-                        fields={
-                            "primary": serializers.BooleanField(),
-                            "value": serializers.CharField(),
-                            "type": serializers.CharField(),
-                        },
-                        many=True,
-                    ),
-                    "name": inline_serializer(
-                        "Name",
-                        fields={
-                            "familyName": serializers.CharField(),
-                            "givenName": serializers.CharField(),
-                        },
-                    ),
-                    "active": serializers.BooleanField(),
-                    "meta": inline_serializer(
-                        "Meta",
-                        fields={
-                            "resourceType": serializers.CharField(),
-                        },
-                    ),
-                },
-                many=False,
-            ),
+            200: OrganizationMemberSCIMSerializer,
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,
@@ -253,38 +224,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
                     "totalResults": serializers.IntegerField(),
                     "startIndex": serializers.IntegerField(),
                     "itemsPerPage": serializers.IntegerField(),
-                    "Resources": inline_serializer(
-                        "Resources",
-                        fields={
-                            "schemas": serializers.ListField(serializers.CharField()),
-                            "id": serializers.CharField(),
-                            "userName": serializers.CharField(),
-                            "emails": inline_serializer(
-                                "zSCIMMemberEmails",
-                                fields={
-                                    "primary": serializers.BooleanField(),
-                                    "value": serializers.CharField(),
-                                    "type": serializers.CharField(),
-                                },
-                                many=True,
-                            ),
-                            "name": inline_serializer(
-                                "zName",
-                                fields={
-                                    "familyName": serializers.CharField(),
-                                    "givenName": serializers.CharField(),
-                                },
-                            ),
-                            "active": serializers.BooleanField(),
-                            "meta": inline_serializer(
-                                "zMeta",
-                                fields={
-                                    "resourceType": serializers.CharField(),
-                                },
-                            ),
-                        },
-                        many=True,
-                    ),
+                    "Resources": OrganizationMemberSCIMSerializer,
                 },
             ),
             401: RESPONSE_UNAUTHORIZED,

@@ -1,10 +1,11 @@
 from collections import defaultdict
-from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Set
+from typing import Any, List, Mapping, MutableMapping, Optional, Sequence, Set, TypedDict
 
 from typing_extensions import TypedDict
 
 from sentry import roles
 from sentry.api.serializers import Serializer, register, serialize
+from sentry.apidocs.decorators import declare_public, mark_serializer_public
 from sentry.models import (
     ExternalActor,
     OrganizationMember,
