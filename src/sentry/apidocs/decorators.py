@@ -15,3 +15,8 @@ def public(methods: HTTP_METHODS_SET) -> Callable[[Any], Any]:
         return view_cls
 
     return decorate
+
+
+def mark_serializer_public(serializer_cls):
+    PUBLIC_SERIALIZERS.add(f"{serializer_cls.__module__}.{serializer_cls.__name__}")
+    return serializer_cls
