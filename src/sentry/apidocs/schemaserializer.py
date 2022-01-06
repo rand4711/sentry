@@ -11,6 +11,7 @@ PUBLIC_SERIALIZERS = set()
 # https://www.python.org/dev/peps/pep-0655/
 
 
+# TODO: map things in registry
 def is_optional(field):
     # https://stackoverflow.com/a/58841311
     return get_origin(field) is Union and type(None) in get_args(field)
@@ -62,9 +63,6 @@ def map_typedict(t, excluded_fields=None):
 
 def get_class(obj) -> type:
     return obj if inspect.isclass(obj) else obj.__class__
-
-
-from sentry.api.serializers import Serializer
 
 
 def map_serializer(serializer):

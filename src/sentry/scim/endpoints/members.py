@@ -1,5 +1,3 @@
-from typing import TypedDict
-
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -32,6 +30,7 @@ from sentry.models import (
     InviteStatus,
     OrganizationMember,
 )
+from sentry.scim.endpoints.scim_list_serializer import SCIMListResponseSerializer
 from sentry.signals import member_invited
 from sentry.utils.cursors import SCIMCursor
 
@@ -217,16 +216,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
         parameters=[GLOBAL_PARAMS.ORG_SLUG, SCIMQueryParamSerializer],
         request=None,
         responses={
-            200: inline_serializer(
-                "SCIMMemberIndex",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "totalResults": serializers.IntegerField(),
-                    "startIndex": serializers.IntegerField(),
-                    "itemsPerPage": serializers.IntegerField(),
-                    "Resources": OrganizationMemberSCIMSerializer,
-                },
-            ),
+            200: SCIMListResponseSerializer,
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,
@@ -305,37 +295,7 @@ class OrganizationSCIMMemberIndex(SCIMEndpoint):
         parameters=[GLOBAL_PARAMS.ORG_SLUG],
         request=inline_serializer("SCIMMemberProvision", fields={}),
         responses={
-            201: inline_serializer(
-                "SCIMMemberIndex2",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "id": serializers.CharField(),
-                    "userName": serializers.CharField(),
-                    "emails": inline_serializer(
-                        "zSCIMMemberEmails2",
-                        fields={
-                            "primary": serializers.BooleanField(),
-                            "value": serializers.CharField(),
-                            "type": serializers.CharField(),
-                        },
-                        many=True,
-                    ),
-                    "name": inline_serializer(
-                        "zName2",
-                        fields={
-                            "familyName": serializers.CharField(),
-                            "givenName": serializers.CharField(),
-                        },
-                    ),
-                    "active": serializers.BooleanField(),
-                    "meta": inline_serializer(
-                        "zMeta2",
-                        fields={
-                            "resourceType": serializers.CharField(),
-                        },
-                    ),
-                },
-            ),
+            201: OrganizationMemberSCIMSerializer,
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,

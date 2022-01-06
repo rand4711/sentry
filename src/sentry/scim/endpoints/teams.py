@@ -31,6 +31,7 @@ from sentry.models import (
     Team,
     TeamStatus,
 )
+from sentry.scim.endpoints.scim_list_serializer import SCIMListResponseSerializerTeams
 from sentry.utils.cursors import SCIMCursor
 
 from .constants import (
@@ -86,31 +87,7 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
         parameters=[GLOBAL_PARAMS.ORG_SLUG, SCIMQueryParamSerializer],
         request=None,
         responses={
-            200: inline_serializer(
-                "SCIMGroupIndex",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "totalResults": serializers.IntegerField(),
-                    "startIndex": serializers.IntegerField(),
-                    "itemsPerPage": serializers.IntegerField(),
-                    "Resources": inline_serializer(
-                        "Resources2",
-                        fields={
-                            "schemas": serializers.ListField(serializers.CharField()),
-                            "displayName": serializers.CharField(),
-                            "members": serializers.ListField(serializers.IntegerField()),
-                            "id": serializers.CharField(),
-                            "meta": inline_serializer(
-                                "zMeta5",
-                                fields={
-                                    "resourceType": serializers.CharField(),
-                                },
-                            ),
-                        },
-                        many=True,
-                    ),
-                },
-            ),
+            200: SCIMListResponseSerializerTeams,
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,
@@ -183,21 +160,7 @@ class OrganizationSCIMTeamIndex(SCIMEndpoint, OrganizationTeamsEndpoint):
             },
         ),
         responses={
-            201: inline_serializer(
-                "SCIMTeamProvision2",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "displayName": serializers.CharField(),
-                    "members": serializers.ListField(serializers.IntegerField()),
-                    "id": serializers.CharField(),
-                    "meta": inline_serializer(
-                        "zMeta4",
-                        fields={
-                            "resourceType": serializers.CharField(),
-                        },
-                    ),
-                },
-            ),
+            201: TeamSCIMSerializer,
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,
@@ -258,21 +221,7 @@ class OrganizationSCIMTeamDetails(SCIMEndpoint, TeamDetailsEndpoint):
         parameters=[SCIM_PARAMS.TEAM_ID, GLOBAL_PARAMS.ORG_SLUG],
         request=None,
         responses={
-            200: inline_serializer(
-                "SCIMTeamDetails",
-                fields={
-                    "schemas": serializers.ListField(serializers.CharField()),
-                    "displayName": serializers.CharField(),
-                    "members": serializers.ListField(serializers.IntegerField()),
-                    "id": serializers.CharField(),
-                    "meta": inline_serializer(
-                        "zMeta6",
-                        fields={
-                            "resourceType": serializers.CharField(),
-                        },
-                    ),
-                },
-            ),
+            200: TeamSCIMSerializer,
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,

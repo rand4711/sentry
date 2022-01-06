@@ -3,18 +3,21 @@ from typing import (
     AbstractSet,
     Any,
     Iterable,
+    List,
     Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
     Sequence,
     Set,
+    TypedDict,
 )
 
 from django.db.models import Count
 
 from sentry import roles
 from sentry.api.serializers import Serializer, register, serialize
+from sentry.apidocs.decorators import mark_serializer_public
 from sentry.app import env
 from sentry.auth.superuser import is_active_superuser
 from sentry.models import (
@@ -231,6 +234,24 @@ def get_scim_teams_members(
     return member_map
 
 
+class SCIMMeta(TypedDict):
+    resourceType: str
+
+
+class SCIMTeamMemberListItem(TypedDict):
+    value: str
+    display: str
+
+
+class OrganizationTeamSCIMSerializerResponse(TypedDict, total=False):
+    schemas: List[str]
+    id: str
+    displayName: str
+    meta: SCIMMeta
+    members: List[SCIMTeamMemberListItem]
+
+
+@mark_serializer_public
 class TeamSCIMSerializer(Serializer):  # type: ignore
     def __init__(
         self,
@@ -253,7 +274,7 @@ class TeamSCIMSerializer(Serializer):  # type: ignore
 
     def serialize(
         self, obj: Team, attrs: Mapping[str, Any], user: Any, **kwargs: Any
-    ) -> MutableMapping[str, JSONData]:
+    ) -> OrganizationTeamSCIMSerializerResponse:
         result = {
             "schemas": [SCIM_SCHEMA_GROUP],
             "id": str(obj.id),
