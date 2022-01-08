@@ -1,9 +1,12 @@
 import inspect
-from typing import Optional, Union, _TypedDictMeta, get_args, get_origin, get_type_hints
+from typing import Any, List, Optional, Union, _TypedDictMeta, get_args, get_origin, get_type_hints
 
 from drf_spectacular.drainage import get_override
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.openapi import build_array_type, build_basic_type, is_basic_type
+from drf_spectacular.plumbing import resolve_type_hint
+
+from sentry.api.serializers.base import Serializer
 
 # from drf_spectacular.plumbing import get_doc, safe_ref
 
@@ -17,7 +20,7 @@ def is_optional(field) -> bool:
     return get_origin(field) is Union and type(None) in get_args(field)
 
 
-def map_field_from_type(t):
+def map_field_from_type(t: type) -> Any:
     if type(t) == _TypedDictMeta:
         return map_typedict(t), True
 
@@ -65,25 +68,6 @@ def get_class(obj) -> type:
     return obj if inspect.isclass(obj) else obj.__class__
 
 
-def map_serializer(serializer):
-    sig = inspect.signature(serializer.serialize)
-
-    excluded_fields = get_override(serializer, "exclude_fields", [])
-
-    if type(sig.return_annotation) != _TypedDictMeta:
-        raise Exception("wrong type!, expecting a TypedDict")
-
-    properties = map_typedict(sig.return_annotation, excluded_fields)
-
-    # a = build_object_type(
-    #     properties=properties,
-    #     required=required,
-    #     description=""
-    #     # description=get_doc(self.target_class.__class__),
-    # )
-    return properties
-
-
 class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
     priority = 0
     target_class = "sentry.api.serializers.base.Serializer"
@@ -108,7 +92,90 @@ class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
             return get_class(target) == cls.target_class
 
     def map_serializer(self, auto_schema, direction):
-        return map_serializer(self.target)
+        serializer_signature = inspect.signature(self.target.serialize)
+        return resolve_type_hint(serializer_signature.return_annotation)
+
+
+class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
+    priority = 0
+    target_class = "sentry.apidocs.schemaserializer.RawSchema"
+    match_subclasses = True
+
+    def get_name(self) -> Optional[str]:
+        return self.target.__name__
+
+    @classmethod
+    def _matches(cls, target) -> bool:
+        if isinstance(cls.target_class, str):
+            cls._load_class()
+
+        if cls.target_class is None:
+            return False  # app not installed
+        elif cls.match_subclasses:
+            return (
+                issubclass(get_class(target), cls.target_class)
+                and f"{target.__module__}.{target.__name__}" in PUBLIC_SERIALIZERS
+            )
+        else:
+            return get_class(target) == cls.target_class
+
+    def map_serializer(self, auto_schema, direction):
+        return resolve_type_hint(self.target.typeSchema)
+
+
+def inline_list_serializer(serializer):
+    from sentry.apidocs.decorators import mark_serializer_public
+
+    sig = inspect.signature(serializer.serialize)
+    serializer_return_annotation = sig.return_annotation
+
+    @mark_serializer_public
+    class ListResponseSerializer(Serializer):
+        def serialize(self) -> List[serializer_return_annotation]:
+            pass
+
+    return ListResponseSerializer
+
+
+class RawSchema:
+    def __init__(self, type):
+        self.type = type
+
+
+def inline_serializer(name, t):
+    serializer_class = type(name, (RawSchema,), t)
+    return serializer_class
+
+
+# class PrimitiveType:
+#     pass
+
+
+# class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
+#     priority = 0
+#     target_class = "sentry.apidocs.schemaserializer.PrimitiveType"
+#     match_subclasses = True
+
+#     def get_name(self) -> Optional[str]:
+#         return self.target.__name__
+
+#     @classmethod
+#     def _matches(cls, target) -> bool:
+#         if isinstance(cls.target_class, str):
+#             cls._load_class()
+
+#         if cls.target_class is None:
+#             return False  # app not installed
+#         elif cls.match_subclasses:
+#             return (
+#                 issubclass(get_class(target), cls.target_class)
+#                 and f"{target.__module__}.{target.__name__}" in PUBLIC_SERIALIZERS
+#             )
+#         else:
+#             return get_class(target) == cls.target_class
+
+#     def map_serializer(self, auto_schema, direction):
+#         return map_serializer(self.target)
 
 
 # TODO: create this for our types

@@ -69,5 +69,6 @@
   "python.linting.pycodestylePath": "${workspaceFolder}/.venv/bin/pep8",
   "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
   "python.formatting.blackPath": "${workspaceFolder}/.venv/bin/black",
-  "python.formatting.provider": "black"
+  "python.formatting.provider": "black",
+  "python.analysis.typeCheckingMode": "basic"
 }

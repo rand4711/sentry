@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Any, List, MutableMapping, Optional, Sequence
+from typing import Any, List, MutableMapping, Optional, Sequence, TypedDict
 
 import sentry_sdk
 from django.db import connection
@@ -12,6 +12,7 @@ from sentry import features, options, projectoptions, release_health, roles
 from sentry.api.serializers import Serializer, register, serialize
 from sentry.api.serializers.models.plugin import PluginSerializer
 from sentry.api.serializers.models.team import get_org_roles, get_team_memberships
+from sentry.apidocs.schemaserializer import inline_serializer
 from sentry.app import env
 from sentry.auth.superuser import is_active_superuser
 from sentry.constants import StatsPeriod
@@ -147,6 +148,38 @@ def get_features_for_projects(
             features_by_project[project].append("releases")
 
     return features_by_project
+
+
+class Avatar(TypedDict):
+    avatarUuid: Optional[str]
+    avatarType: str
+
+
+class ProjectSerializerReturnTypeRequired(TypedDict, total=True):
+    id: str
+    slug: str
+    name: str
+    isPublic: bool
+    isBookmarked: bool
+    color: str
+    dateCreated: Optional[str]
+    firstEvent: Optional[str]
+    features: List[str]
+    status: str
+    platform: Optional[str]
+    isInternal: bool
+    isMember: bool
+    hasAccess: bool
+    avatar: Avatar
+    stats: str
+    transactionStats: str
+    sessionStats: str
+
+
+class ProjectSerializerReturnTypeOptional(ProjectSerializerReturnTypeRequired, total=False):
+    firstTransactionEvent: bool
+    hasSessions: bool
+    sessionStats: str
 
 
 @register(Project)
@@ -334,7 +367,7 @@ class ProjectSerializer(Serializer):
 
         return project_health_data_dict
 
-    def serialize(self, obj, attrs, user):
+    def serialize(self, obj, attrs, user) -> ProjectSerializerReturnTypeOptional:
         status_label = STATUS_LABELS.get(obj.status, "unknown")
 
         if attrs.get("avatar"):

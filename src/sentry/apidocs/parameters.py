@@ -16,6 +16,13 @@ class GLOBAL_PARAMS:
         type=str,
         location="path",
     )
+    TEAM_SLUG = OpenApiParameter(
+        name="team_slug",
+        description="The slug of the team you are querying.",
+        required=True,
+        type=str,
+        location="path",
+    )
 
 
 class SCIM_PARAMS:

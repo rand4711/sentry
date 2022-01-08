@@ -1,4 +1,5 @@
 from django.db import IntegrityError, transaction
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import serializers, status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -7,13 +8,18 @@ from sentry.api.base import EnvironmentMixin
 from sentry.api.bases.team import TeamEndpoint, TeamPermission
 from sentry.api.paginator import OffsetPaginator
 from sentry.api.serializers import ProjectSummarySerializer, serialize
+from sentry.api.serializers.models.project import ProjectSerializer
+from sentry.apidocs.constants import RESPONSE_FORBIDDEN, RESPONSE_NOTFOUND, RESPONSE_UNAUTHORIZED
+from sentry.apidocs.decorators import declare_public
+from sentry.apidocs.parameters import GLOBAL_PARAMS
+from sentry.apidocs.schemaserializer import inline_list_serializer, inline_serializer
 from sentry.models import AuditLogEntryEvent, Project, ProjectStatus
 from sentry.signals import project_created
 
 ERR_INVALID_STATS_PERIOD = "Invalid stats_period. Valid choices are '', '24h', '14d', and '30d'"
 
 
-class ProjectSerializer(serializers.Serializer):
+class ProjectRequestSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=50, required=True)
     slug = serializers.RegexField(r"^[a-z0-9_\-]+$", max_length=50, required=False, allow_null=True)
     platform = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -42,14 +48,57 @@ class TeamProjectPermission(TeamPermission):
     }
 
 
+@declare_public({"GET"})
 class TeamProjectsEndpoint(TeamEndpoint, EnvironmentMixin):
     permission_classes = (TeamProjectPermission,)
 
+    @extend_schema(
+        operation_id="List a Team's Projects",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG, GLOBAL_PARAMS.TEAM_SLUG],
+        request=None,
+        responses={
+            200: inline_serializer([ProjectSerializer]),
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Successful response",
+                value=[
+                    {
+                        "status": "active",
+                        "name": "The Spoiled Yoghurt",
+                        "color": "#bf6e3f",
+                        "isInternal": False,
+                        "isPublic": False,
+                        "slug": "the-spoiled-yoghurt",
+                        "platform": None,
+                        "hasAccess": True,
+                        "firstEvent": None,
+                        "avatar": {"avatarUuid": None, "avatarType": "letter_avatar"},
+                        "isMember": False,
+                        "dateCreated": "2020-08-20T14:36:34.171255Z",
+                        "isBookmarked": False,
+                        "id": "5398494",
+                        "features": [
+                            "custom-inbound-filters",
+                            "discard-groups",
+                            "rate-limits",
+                            "data-forwarding",
+                            "similarity-view",
+                            "issue-alerts-targeting",
+                            "servicehooks",
+                            "minidump",
+                            "similarity-indexing",
+                        ],
+                    }
+                ],
+            ),
+        ],
+    )
     def get(self, request: Request, team) -> Response:
         """
-        List a Team's Projects
-        ``````````````````````
-
         Return a list of projects bound to a team.
 
         :pparam string organization_slug: the slug of the organization the
@@ -106,7 +155,7 @@ class TeamProjectsEndpoint(TeamEndpoint, EnvironmentMixin):
         :param bool default_rules: create default rules (defaults to True)
         :auth: required
         """
-        serializer = ProjectSerializer(data=request.data)
+        serializer = ProjectRequestSerializer(data=request.data)
 
         if serializer.is_valid():
             result = serializer.validated_data
