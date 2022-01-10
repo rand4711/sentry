@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Any, List, Mapping, MutableMapping, Optional
 
 from sentry.api.serializers import Serializer, register
+from sentry.api.serializers.types.types import ExternalActorSerializerReturnType
 from sentry.models import (
     ACTOR_TYPES,
     ExternalActor,
@@ -50,9 +51,9 @@ class ExternalActorSerializer(Serializer):  # type: ignore
         user: User,
         key: Optional[str] = None,
         **kwargs: Any,
-    ) -> Mapping[str, Any]:
+    ) -> ExternalActorSerializerReturnType:
         provider = get_provider_string(obj.provider)
-        data = {
+        data: ExternalActorSerializerReturnType = {
             "id": str(obj.id),
             "provider": provider,
             "externalName": obj.external_name,

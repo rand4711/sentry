@@ -1,6 +1,9 @@
+from typing import List
+
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
+from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import serializers, status
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -9,6 +12,11 @@ from sentry.api.bases.organization import OrganizationEndpoint, OrganizationPerm
 from sentry.api.paginator import OffsetPaginator
 from sentry.api.serializers import serialize
 from sentry.api.serializers.models.team import TeamSerializer
+from sentry.api.serializers.types.types import TeamSerializerReturnType
+from sentry.apidocs.constants import RESPONSE_FORBIDDEN, RESPONSE_NOTFOUND, RESPONSE_UNAUTHORIZED
+from sentry.apidocs.decorators import declare_public
+from sentry.apidocs.parameters import GLOBAL_PARAMS
+from sentry.apidocs.schemaserializer import inline_sentry_response_serializer
 from sentry.models import (
     AuditLogEntryEvent,
     ExternalActor,
@@ -54,6 +62,7 @@ class TeamPostSerializer(serializers.Serializer):
         return attrs
 
 
+@declare_public({"GET", "POST"})
 class OrganizationTeamsEndpoint(OrganizationEndpoint):
     permission_classes = (OrganizationTeamsPermission,)
 
@@ -61,6 +70,120 @@ class OrganizationTeamsEndpoint(OrganizationEndpoint):
         # allow child routes to supply own serializer, used in SCIM teams route
         return TeamSerializer()
 
+    @extend_schema(
+        operation_id="List an Organization's Teams",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG],
+        request=None,
+        responses={
+            200: inline_sentry_response_serializer("ListTeams+", List[TeamSerializerReturnType]),
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Successful response",
+                value=[
+                    {
+                        "avatar": {"avatarType": "letter_avatar", "avatarUuid": None},
+                        "dateCreated": "2018-11-06T21:20:08.115Z",
+                        "hasAccess": True,
+                        "id": "3",
+                        "isMember": True,
+                        "isPending": False,
+                        "memberCount": 1,
+                        "name": "Ancient Gabelers",
+                        "projects": [],
+                        "slug": "ancient-gabelers",
+                    },
+                    {
+                        "avatar": {"avatarType": "letter_avatar", "avatarUuid": None},
+                        "dateCreated": "2018-11-06T21:19:55.114Z",
+                        "hasAccess": True,
+                        "id": "2",
+                        "isMember": True,
+                        "isPending": False,
+                        "memberCount": 1,
+                        "name": "Powerful Abolitionist",
+                        "projects": [
+                            {
+                                "avatar": {"avatarType": "letter_avatar", "avatarUuid": None},
+                                "color": "#bf5b3f",
+                                "dateCreated": "2018-11-06T21:19:58.536Z",
+                                "features": [
+                                    "releases",
+                                    "sample-events",
+                                    "minidump",
+                                    "servicehooks",
+                                    "rate-limits",
+                                    "data-forwarding",
+                                ],
+                                "firstEvent": None,
+                                "hasAccess": True,
+                                "id": "3",
+                                "isBookmarked": False,
+                                "isInternal": False,
+                                "isMember": True,
+                                "isPublic": False,
+                                "name": "Prime Mover",
+                                "platform": None,
+                                "slug": "prime-mover",
+                                "status": "active",
+                            },
+                            {
+                                "avatar": {"avatarType": "letter_avatar", "avatarUuid": None},
+                                "color": "#3fbf7f",
+                                "dateCreated": "2018-11-06T21:19:55.121Z",
+                                "features": [
+                                    "releases",
+                                    "sample-events",
+                                    "minidump",
+                                    "servicehooks",
+                                    "rate-limits",
+                                    "data-forwarding",
+                                ],
+                                "firstEvent": None,
+                                "hasAccess": True,
+                                "id": "2",
+                                "isBookmarked": False,
+                                "isInternal": False,
+                                "isMember": True,
+                                "isPublic": False,
+                                "name": "Pump Station",
+                                "platform": None,
+                                "slug": "pump-station",
+                                "status": "active",
+                            },
+                            {
+                                "avatar": {"avatarType": "letter_avatar", "avatarUuid": None},
+                                "color": "#bf6e3f",
+                                "dateCreated": "2018-11-06T21:20:08.064Z",
+                                "features": [
+                                    "servicehooks",
+                                    "sample-events",
+                                    "data-forwarding",
+                                    "rate-limits",
+                                    "minidump",
+                                ],
+                                "firstEvent": None,
+                                "hasAccess": True,
+                                "id": "4",
+                                "isBookmarked": False,
+                                "isInternal": False,
+                                "isMember": True,
+                                "isPublic": False,
+                                "name": "The Spoiled Yoghurt",
+                                "platform": None,
+                                "slug": "the-spoiled-yoghurt",
+                                "status": "active",
+                            },
+                        ],
+                        "slug": "powerful-abolitionist",
+                    },
+                ],
+            ),
+        ],
+    )
     def get(self, request: Request, organization) -> Response:
         """
         List an Organization's Teams
@@ -88,7 +211,7 @@ class OrganizationTeamsEndpoint(OrganizationEndpoint):
             tokens = tokenize_query(query)
             for key, value in tokens.items():
                 if key == "hasExternalTeams":
-                    has_external_teams = "true" in value
+                    has_external_teams = "True" in value
                     if has_external_teams:
                         queryset = queryset.filter(
                             actor_id__in=ExternalActor.objects.filter(
@@ -127,21 +250,39 @@ class OrganizationTeamsEndpoint(OrganizationEndpoint):
     def should_add_creator_to_team(self, request: Request):
         return request.user.is_authenticated
 
+    @extend_schema(
+        operation_id="Create a new Team",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG],
+        request=TeamPostSerializer,
+        responses={
+            201: TeamSerializer,
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Successful response",
+                value={
+                    "memberCount": 0,
+                    "name": "Ancient Gabelers",
+                    "isMember": False,
+                    "hasAccess": True,
+                    "isPending": False,
+                    "dateCreated": "2020-08-19T21:46:47.877073Z",
+                    "id": "542610",
+                    "avatar": {"avatarUuid": None, "avatarType": "letter_avatar"},
+                    "slug": "ancient-gabelers",
+                },
+                response_only=True,
+                status_codes=["201"],
+            ),
+        ],
+    )
     def post(self, request: Request, organization, **kwargs) -> Response:
         """
-        Create a new Team
-        ``````````````````
-
         Create a new team bound to an organization.  Only the name of the
         team is needed to create it, the slug can be auto generated.
-
-        :pparam string organization_slug: the slug of the organization the
-                                          team should be created for.
-        :param string name: the optional name of the team.
-        :param string slug: the optional slug for this team.  If
-                            not provided it will be auto generated from the
-                            name.
-        :auth: required
         """
         serializer = TeamPostSerializer(data=request.data)
 

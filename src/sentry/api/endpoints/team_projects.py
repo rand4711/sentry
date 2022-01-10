@@ -1,3 +1,5 @@
+from typing import List
+
 from django.db import IntegrityError, transaction
 from drf_spectacular.utils import OpenApiExample, extend_schema
 from rest_framework import serializers, status
@@ -9,10 +11,11 @@ from sentry.api.bases.team import TeamEndpoint, TeamPermission
 from sentry.api.paginator import OffsetPaginator
 from sentry.api.serializers import ProjectSummarySerializer, serialize
 from sentry.api.serializers.models.project import ProjectSerializer
+from sentry.api.serializers.types.types import ProjectSerializerReturnTypeRequired
 from sentry.apidocs.constants import RESPONSE_FORBIDDEN, RESPONSE_NOTFOUND, RESPONSE_UNAUTHORIZED
 from sentry.apidocs.decorators import declare_public
 from sentry.apidocs.parameters import GLOBAL_PARAMS
-from sentry.apidocs.schemaserializer import inline_list_serializer, inline_serializer
+from sentry.apidocs.schemaserializer import inline_sentry_response_serializer
 from sentry.models import AuditLogEntryEvent, Project, ProjectStatus
 from sentry.signals import project_created
 
@@ -48,7 +51,7 @@ class TeamProjectPermission(TeamPermission):
     }
 
 
-@declare_public({"GET"})
+@declare_public({"GET", "POST"})
 class TeamProjectsEndpoint(TeamEndpoint, EnvironmentMixin):
     permission_classes = (TeamProjectPermission,)
 
@@ -57,7 +60,9 @@ class TeamProjectsEndpoint(TeamEndpoint, EnvironmentMixin):
         parameters=[GLOBAL_PARAMS.ORG_SLUG, GLOBAL_PARAMS.TEAM_SLUG],
         request=None,
         responses={
-            200: inline_serializer([ProjectSerializer]),
+            200: inline_sentry_response_serializer(
+                "TeamProjectsListResponse", List[ProjectSerializerReturnTypeRequired]
+            ),
             401: RESPONSE_UNAUTHORIZED,
             403: RESPONSE_FORBIDDEN,
             404: RESPONSE_NOTFOUND,
@@ -100,11 +105,6 @@ class TeamProjectsEndpoint(TeamEndpoint, EnvironmentMixin):
     def get(self, request: Request, team) -> Response:
         """
         Return a list of projects bound to a team.
-
-        :pparam string organization_slug: the slug of the organization the
-                                          team belongs to.
-        :pparam string team_slug: the slug of the team to list the projects of.
-        :auth: required
         """
         if request.auth and hasattr(request.auth, "project"):
             queryset = Project.objects.filter(id=request.auth.project.id)
@@ -138,22 +138,54 @@ class TeamProjectsEndpoint(TeamEndpoint, EnvironmentMixin):
             paginator_cls=OffsetPaginator,
         )
 
+    @extend_schema(
+        operation_id="Create a New Project",
+        parameters=[GLOBAL_PARAMS.ORG_SLUG, GLOBAL_PARAMS.TEAM_SLUG],
+        request=ProjectRequestSerializer,
+        responses={
+            201: ProjectSerializer,
+            401: RESPONSE_UNAUTHORIZED,
+            403: RESPONSE_FORBIDDEN,
+            404: RESPONSE_NOTFOUND,
+        },
+        examples=[  # TODO: see if this can go on serializer object instead
+            OpenApiExample(
+                "Successful response",
+                value={
+                    "status": "active",
+                    "name": "The Spoiled Yoghurt",
+                    "color": "#bf6e3f",
+                    "isInternal": False,
+                    "isPublic": False,
+                    "slug": "the-spoiled-yoghurt",
+                    "platform": None,
+                    "hasAccess": True,
+                    "firstEvent": None,
+                    "avatar": {"avatarUuid": None, "avatarType": "letter_avatar"},
+                    "isMember": False,
+                    "dateCreated": "2020-08-20T14:36:34.171255Z",
+                    "isBookmarked": False,
+                    "id": "5398494",
+                    "features": [
+                        "custom-inbound-filters",
+                        "discard-groups",
+                        "rate-limits",
+                        "data-forwarding",
+                        "similarity-view",
+                        "issue-alerts-targeting",
+                        "servicehooks",
+                        "minidump",
+                        "similarity-indexing",
+                    ],
+                },
+                status_codes=["201"],
+                response_only=True,
+            )
+        ],
+    )
     def post(self, request: Request, team) -> Response:
         """
-        Create a New Project
-        ````````````````````
-
         Create a new project bound to a team.
-
-        :pparam string organization_slug: the slug of the organization the
-                                          team belongs to.
-        :pparam string team_slug: the slug of the team to create a new project
-                                  for.
-        :param string name: the name for the new project.
-        :param string slug: optionally a slug for the new project.  If it's
-                            not provided a slug is generated from the name.
-        :param bool default_rules: create default rules (defaults to True)
-        :auth: required
         """
         serializer = ProjectRequestSerializer(data=request.data)
 

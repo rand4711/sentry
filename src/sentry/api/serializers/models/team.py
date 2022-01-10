@@ -17,6 +17,7 @@ from django.db.models import Count
 
 from sentry import roles
 from sentry.api.serializers import Serializer, register, serialize
+from sentry.api.serializers.types.types import AvatarReturnType, TeamSerializerReturnType
 from sentry.apidocs.decorators import mark_serializer_public
 from sentry.app import env
 from sentry.auth.superuser import is_active_superuser
@@ -33,7 +34,6 @@ from sentry.models import (
 )
 from sentry.scim.endpoints.constants import SCIM_SCHEMA_GROUP
 from sentry.utils.compat import zip
-from sentry.utils.json import JSONData
 from sentry.utils.query import RangeQuerySetWrapper
 
 
@@ -87,7 +87,30 @@ def get_access_requests(item_list: Sequence[Team], user: User) -> AbstractSet[Te
         )
     return frozenset()
 
+    # result = {
+    #     "id": str(obj.id),
+    #     "slug": obj.slug,
+    #     "name": obj.name,
+    #     "dateCreated": obj.date_added,
+    #     "isMember": attrs["is_member"],
+    #     "hasAccess": attrs["has_access"],
+    #     "isPending": attrs["pending_request"],
+    #     "memberCount": attrs["member_count"],
+    #     "avatar": avatar,
+    # }
 
+    # # Expandable attributes.
+    # if self._expand("externalTeams"):
+    #     result["externalTeams"] = attrs["externalTeams"]
+
+    # if self._expand("organization"):
+    #     result["organization"] = serialize(obj.organization, user)
+
+    # if self._expand("projects"):
+    #     result["projects"] = attrs["projects"]
+
+
+@mark_serializer_public
 @register(Team)
 class TeamSerializer(Serializer):  # type: ignore
     def __init__(
@@ -176,16 +199,16 @@ class TeamSerializer(Serializer):  # type: ignore
 
     def serialize(
         self, obj: Team, attrs: Mapping[str, Any], user: Any, **kwargs: Any
-    ) -> MutableMapping[str, JSONData]:
+    ) -> TeamSerializerReturnType:
         if attrs.get("avatar"):
             avatar = {
                 "avatarType": attrs["avatar"].get_avatar_type_display(),
                 "avatarUuid": attrs["avatar"].ident if attrs["avatar"].file_id else None,
             }
         else:
-            avatar = {"avatarType": "letter_avatar", "avatarUuid": None}
+            avatar: AvatarReturnType = {"avatarType": "letter_avatar", "avatarUuid": None}
 
-        result = {
+        result: TeamSerializerReturnType = {
             "id": str(obj.id),
             "slug": obj.slug,
             "name": obj.name,

@@ -1,12 +1,9 @@
 import inspect
-from typing import Any, List, Optional, Union, _TypedDictMeta, get_args, get_origin, get_type_hints
+from typing import Any, Optional, Union, _TypedDictMeta, get_args, get_origin, get_type_hints
 
-from drf_spectacular.drainage import get_override
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.openapi import build_array_type, build_basic_type, is_basic_type
 from drf_spectacular.plumbing import resolve_type_hint
-
-from sentry.api.serializers.base import Serializer
 
 # from drf_spectacular.plumbing import get_doc, safe_ref
 
@@ -68,7 +65,7 @@ def get_class(obj) -> type:
     return obj if inspect.isclass(obj) else obj.__class__
 
 
-class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
+class SentryResponseSerializerExtension(OpenApiSerializerExtension):
     priority = 0
     target_class = "sentry.api.serializers.base.Serializer"
     match_subclasses = True
@@ -96,7 +93,7 @@ class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
         return resolve_type_hint(serializer_signature.return_annotation)
 
 
-class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
+class SentryInlineResponseSerializerExtension(OpenApiSerializerExtension):
     priority = 0
     target_class = "sentry.apidocs.schemaserializer.RawSchema"
     match_subclasses = True
@@ -112,10 +109,7 @@ class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
         if cls.target_class is None:
             return False  # app not installed
         elif cls.match_subclasses:
-            return (
-                issubclass(get_class(target), cls.target_class)
-                and f"{target.__module__}.{target.__name__}" in PUBLIC_SERIALIZERS
-            )
+            return issubclass(get_class(target), cls.target_class)
         else:
             return get_class(target) == cls.target_class
 
@@ -123,27 +117,27 @@ class PublicSchemaResponseSerializerExtension(OpenApiSerializerExtension):
         return resolve_type_hint(self.target.typeSchema)
 
 
-def inline_list_serializer(serializer):
-    from sentry.apidocs.decorators import mark_serializer_public
+# def inline_list_serializer(serializer):
+#     from sentry.apidocs.decorators import mark_serializer_public
 
-    sig = inspect.signature(serializer.serialize)
-    serializer_return_annotation = sig.return_annotation
+#     sig = inspect.signature(serializer.serialize)
+#     serializer_return_annotation = sig.return_annotation
 
-    @mark_serializer_public
-    class ListResponseSerializer(Serializer):
-        def serialize(self) -> List[serializer_return_annotation]:
-            pass
+#     @mark_serializer_public
+#     class ListResponseSerializer(Serializer):
+#         def serialize(self) -> List[serializer_return_annotation]:
+#             pass
 
-    return ListResponseSerializer
+#     return ListResponseSerializer
 
 
 class RawSchema:
     def __init__(self, type):
-        self.type = type
+        self.typeSchema = type
 
 
-def inline_serializer(name, t):
-    serializer_class = type(name, (RawSchema,), t)
+def inline_sentry_response_serializer(name, t):
+    serializer_class = type(name, (RawSchema,), {"typeSchema": t})
     return serializer_class
 
 
