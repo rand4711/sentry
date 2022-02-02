@@ -6,7 +6,6 @@ import pick from 'lodash/pick';
 import _EventsRequest from 'sentry/components/charts/eventsRequest';
 import {getInterval} from 'sentry/components/charts/utils';
 import {t} from 'sentry/locale';
-import {QueryBatchNode} from 'sentry/utils/performance/contexts/genericQueryBatcher';
 import withApi from 'sentry/utils/withApi';
 import _DurationChart from 'sentry/views/performance/charts/chart';
 
@@ -14,9 +13,22 @@ import {GenericPerformanceWidget} from '../components/performanceWidget';
 import {transformEventsRequestToArea} from '../transforms/transformEventsToArea';
 import {PerformanceWidgetProps, QueryDefinition, WidgetDataResult} from '../types';
 import {eventsRequestQueryProps} from '../utils';
+import {PerformanceWidgetSetting} from '../widgetDefinitions';
 
 type DataType = {
   chart: WidgetDataResult & ReturnType<typeof transformEventsRequestToArea>;
+};
+
+const MEPSable = [PerformanceWidgetSetting.P50_DURATION_AREA];
+const metricsSettings = (
+  props: PerformanceWidgetProps
+): Record<string, string> | undefined => {
+  if (MEPSable.includes(props.chartSetting)) {
+    return {
+      metricsEnhanced: '1',
+    };
+  }
+  return undefined;
 };
 
 export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
@@ -32,29 +44,25 @@ export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
     () => ({
       fields: props.fields[0],
       component: provided => (
-        <QueryBatchNode batchProperty="yAxis">
-          {({queryBatching}) => (
-            <EventsRequest
-              {...pick(provided, eventsRequestQueryProps)}
-              limit={1}
-              queryBatching={queryBatching}
-              includePrevious
-              includeTransformedData
-              partial
-              currentSeriesNames={[field]}
-              previousSeriesNames={[`previous ${field}`]}
-              query={provided.eventView.getQueryWithAdditionalConditions()}
-              interval={getInterval(
-                {
-                  start: provided.start,
-                  end: provided.end,
-                  period: provided.period,
-                },
-                'medium'
-              )}
-            />
+        <EventsRequest
+          {...pick(provided, eventsRequestQueryProps)}
+          limit={1}
+          includePrevious
+          includeTransformedData
+          partial
+          currentSeriesNames={[field]}
+          previousSeriesNames={[`previous ${field}`]}
+          query={provided.eventView.getQueryWithAdditionalConditions()}
+          interval={getInterval(
+            {
+              start: provided.start,
+              end: provided.end,
+              period: provided.period,
+            },
+            'medium'
           )}
-        </QueryBatchNode>
+          queryExtras={metricsSettings(props)}
+        />
       ),
       transform: transformEventsRequestToArea,
     }),
