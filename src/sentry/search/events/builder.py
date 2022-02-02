@@ -1177,9 +1177,6 @@ class TimeseriesQueryBuilder(UnresolvedQuery):
             limit=self.limit,
         )
 
-    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
-        return raw_snql_query(self.get_snql_query(), referrer, use_cache)
-
 
 class TopEventsQueryBuilder(TimeseriesQueryBuilder):
     """Create one of two top events queries, which is used for the Top Period &
@@ -1460,21 +1457,7 @@ class MetricsQueryBuilder(QueryBuilder):
 
         # TODO(wmak): Need to handle `has` queries, basically check that tags.keys has the value?
 
-        is_null_condition = None
-        # TODO(wmak): Skip this for all non-nullable keys not just event.type
-        if search_filter.operator in ("!=", "NOT IN") and not is_tag:
-            # Handle null columns on inequality comparisons. Any comparison
-            # between a value and a null will result to null, so we need to
-            # explicitly check for whether the condition is null, and OR it
-            # together with the inequality check.
-            is_null_condition = Condition(Function("isNull", [lhs]), Op.EQ, 1)
-
-        condition = Condition(lhs, Op(search_filter.operator), value)
-
-        if is_null_condition:
-            return Or(conditions=[is_null_condition, condition])
-        else:
-            return condition
+        return Condition(lhs, Op(search_filter.operator), value)
 
     def resolve_params(self) -> List[WhereType]:
         conditions = super().resolve_params()
@@ -1526,3 +1509,43 @@ class MetricsQueryBuilder(QueryBuilder):
 
     def run_query(self, referrer: str, use_cache: bool = False) -> Any:
         return bulk_snql_query(self.get_snql_query(), referrer, use_cache)
+
+
+class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder):
+    time_column = AliasedExpression(Column("timestamp"), "time")
+
+    def get_snql_query(self) -> List[Query]:
+        """Because of the way metrics are structured a single request can result in >1 snql query"""
+        distribution_functions = []
+        set_functions = []
+        for function in self.aggregates:
+            if function.alias and function.alias.startswith("p50"):
+                distribution_functions.append(function)
+            elif function.function.startswith("uniq"):
+                set_functions.append(function)
+
+        queries = []
+
+        for entity, functions in [
+            ("metrics_distributions", distribution_functions),
+            ("metrics_sets", set_functions),
+        ]:
+            if len(functions) > 0:
+                queries.append(
+                    Query(
+                        dataset=self.dataset.value,
+                        match=Entity(entity, sample=self.sample_rate),
+                        select=functions,
+                        where=self.where,
+                        having=self.having,
+                        groupby=self.groupby,
+                        orderby=[OrderBy(self.time_column.exp, Direction.ASC)],
+                        granularity=self.granularity,
+                        limit=self.limit,
+                    )
+                )
+
+        return queries
+
+    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
+        return raw_snql_query(self.get_snql_query()[0], referrer, use_cache)

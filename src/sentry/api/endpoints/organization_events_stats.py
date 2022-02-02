@@ -10,7 +10,7 @@ from sentry import features
 from sentry.api.bases import OrganizationEventsV2EndpointBase
 from sentry.constants import MAX_TOP_EVENTS
 from sentry.models import Organization
-from sentry.snuba import discover
+from sentry.snuba import discover, metrics_enhanced_performance
 from sentry.utils.snuba import SnubaTSResult
 
 METRICS_ENHANCE_REFERRERS: Set[str] = {
@@ -145,6 +145,7 @@ class OrganizationEventsStatsEndpoint(OrganizationEventsV2EndpointBase):  # type
             zerofill_results: bool,
             comparison_delta: Optional[datetime],
         ) -> SnubaTSResult:
+            dataset = metrics_enhanced_performance if metrics_enhanced else discover
             if top_events > 0:
                 return discover.top_events_timeseries(
                     timeseries_columns=query_columns,
@@ -162,7 +163,7 @@ class OrganizationEventsStatsEndpoint(OrganizationEventsV2EndpointBase):  # type
                     include_other=True,
                     use_snql=discover_snql,
                 )
-            return discover.timeseries_query(
+            return dataset.timeseries_query(
                 selected_columns=query_columns,
                 query=query,
                 params=params,

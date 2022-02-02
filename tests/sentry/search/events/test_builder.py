@@ -9,8 +9,11 @@ from snuba_sdk.function import Function
 from snuba_sdk.orderby import Direction, LimitBy, OrderBy
 
 from sentry.exceptions import InvalidSearchQuery
-from sentry.search.events.builder import MetricsQueryBuilder, QueryBuilder
-from sentry.sentry_metrics.indexer.models import MetricsKeyIndexer
+from sentry.search.events.builder import (
+    MetricsQueryBuilder,
+    MetricsTimeseriesQueryBuilder,
+    QueryBuilder,
+)
 from sentry.sentry_metrics.indexer.postgres import PGStringIndexer
 from sentry.testutils.cases import TestCase
 from sentry.utils.snuba import Dataset, QueryOutsideRetentionError
@@ -589,7 +592,13 @@ class MetricQueryBuilderTest(TestCase):
             Condition(Column("project_id"), Op.IN, self.projects),
         ]
         PGStringIndexer().bulk_record(
-            strings=["transaction", "release", "1.2.1", "transaction.duration", "user"]
+            strings=[
+                "transaction",
+                "release",
+                "1.2.1",
+                "sentry.transactions.transaction.duration",
+                "user",
+            ]
         )
 
     def test_simple_query(self):
@@ -598,6 +607,15 @@ class MetricQueryBuilderTest(TestCase):
             "release:1.2.1",
             ["transaction", "p50(transaction.duration)", "count_unique(user)"],
         )
-        query.run_query("testing")
-        print(query.get_snql_query()[0])
+        print(query.run_query("testing"))
+        assert False
+
+    def test_simple_timeseries_query(self):
+        query = MetricsTimeseriesQueryBuilder(
+            self.params,
+            10,
+            "release:1.2.1",
+            ["p75(transaction.duration)"],
+        )
+        print(query.run_query("testing"))
         assert False

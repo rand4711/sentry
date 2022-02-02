@@ -49,6 +49,7 @@ from sentry.utils.snuba import (
     is_span_op_breakdown,
     naiveify_datetime,
     raw_query,
+    raw_snql_query,
     resolve_column,
     resolve_snuba_aliases,
     to_naive_timestamp,

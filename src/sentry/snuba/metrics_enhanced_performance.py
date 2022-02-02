@@ -2,10 +2,10 @@ from datetime import timedelta
 from typing import Dict, Optional, Sequence
 
 from sentry.discover.arithmetic import categorize_columns
-from sentry.search.events.builder import MetricsQueryBuilder
+from sentry.search.events.builder import MetricsTimeseriesQueryBuilder
 from sentry.search.utils import InvalidQuery
 from sentry.snuba import discover
-from sentry.utils.snuba import Dataset, raw_snql_query
+from sentry.utils.snuba import SnubaTSResult
 
 # TODO: determine these based on sentry/snuba/events.py
 METRICS_SUPPORTED_COLUMNS = {
@@ -19,7 +19,7 @@ def timeseries_query(
     query: str,
     params: Dict[str, str],
     rollup: int,
-    referrer: Optional[str] = None,
+    referrer: str,
     zerofill_results: bool = True,
     comparison_delta: Optional[timedelta] = None,
     functions_acl: Optional[Sequence[str]] = None,
@@ -36,24 +36,14 @@ def timeseries_query(
     # TODO: Technically could do comparison_delta here too, but since we don't use it in performance I'm skipping it
     # use_snql must be enabled since we aren't backporting metrics to the older query functions
     if not query and comparison_delta is None and use_snql:
-        if len(equations) > 0:
-            print("equations")
-            metrics_compatible = False
-        for column in columns:
-            if column not in METRICS_SUPPORTED_COLUMNS:
-                print("columns")
-                metrics_compatible = False
-    else:
-        print("falsing")
-        metrics_compatible = False
-    print("mep", metrics_compatible)
+        metrics_compatible = True
 
     # This query cannot be enahnced with metrics, use discover
     results = []
+    print(metrics_compatible)
     if metrics_compatible:
         try:
-            base_builder = TimeseriesQueryBuilder(
-                Dataset.Metrics,
+            metrics_query = MetricsTimeseriesQueryBuilder(
                 params,
                 rollup,
                 query=query,
@@ -61,18 +51,21 @@ def timeseries_query(
                 equations=equations,
                 functions_acl=functions_acl,
             )
-            snql_query = base_builder.get_snql_query()
-            result = raw_snql_query(snql_query, referrer)
-            results.append(
+            # Getting the 0th result for now, will need to consolidate multiple query results later
+            result = metrics_query.run_query(referrer + ".metrics-enhanced")
+            result["data"] = (
                 discover.zerofill(
                     result["data"],
-                    snql_query.params["start"],
-                    snql_query.params["end"],
+                    params["start"],
+                    params["end"],
                     rollup,
                     "time",
                 )
                 if zerofill_results
                 else result["data"]
+            )
+            results = SnubaTSResult(
+                {"data": result["data"]}, params["start"], params["end"], rollup
             )
         # raise InvalidQuery since the same thing will happen with discover
         except InvalidQuery as error:
