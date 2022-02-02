@@ -9,7 +9,9 @@ from snuba_sdk.function import Function
 from snuba_sdk.orderby import Direction, LimitBy, OrderBy
 
 from sentry.exceptions import InvalidSearchQuery
-from sentry.search.events.builder import QueryBuilder
+from sentry.search.events.builder import MetricsQueryBuilder, QueryBuilder
+from sentry.sentry_metrics.indexer.models import MetricsKeyIndexer
+from sentry.sentry_metrics.indexer.postgres import PGStringIndexer
 from sentry.testutils.cases import TestCase
 from sentry.utils.snuba import Dataset, QueryOutsideRetentionError
 
@@ -565,3 +567,37 @@ class QueryBuilderTest(TestCase):
         # With count_unique only in a condition and no auto_aggregations this should raise a invalid search query
         with self.assertRaises(InvalidSearchQuery):
             query.get_snql_query()
+
+
+class MetricQueryBuilderTest(TestCase):
+    def setUp(self):
+        self.start = datetime.datetime(2015, 5, 18, 10, 15, 1, tzinfo=timezone.utc)
+        self.end = datetime.datetime(2015, 5, 19, 10, 15, 1, tzinfo=timezone.utc)
+        self.projects = [1, 2, 3]
+        self.organization_id = 1
+        self.params = {
+            "project_id": self.projects,
+            # TODO(wmak): validate this is the right key
+            "organization_id": self.organization_id,
+            "start": self.start,
+            "end": self.end,
+        }
+        # These conditions should always be on a query when self.params is passed
+        self.default_conditions = [
+            Condition(Column("timestamp"), Op.GTE, self.start),
+            Condition(Column("timestamp"), Op.LT, self.end),
+            Condition(Column("project_id"), Op.IN, self.projects),
+        ]
+        PGStringIndexer().bulk_record(
+            strings=["transaction", "release", "1.2.1", "transaction.duration", "user"]
+        )
+
+    def test_simple_query(self):
+        query = MetricsQueryBuilder(
+            self.params,
+            "release:1.2.1",
+            ["transaction", "p50(transaction.duration)", "count_unique(user)"],
+        )
+        query.run_query("testing")
+        print(query.get_snql_query()[0])
+        assert False

@@ -24,6 +24,7 @@ from sentry_sdk import Hub
 from snuba_sdk.legacy import json_to_snql
 from snuba_sdk.query import Query
 
+from sentry.exceptions import InvalidSearchQuery
 from sentry.models import (
     Environment,
     Group,
@@ -35,6 +36,7 @@ from sentry.models import (
     ReleaseProject,
 )
 from sentry.net.http import connection_from_url
+from sentry.sentry_metrics import indexer
 from sentry.snuba.dataset import Dataset
 from sentry.snuba.events import Columns
 from sentry.utils import json, metrics
@@ -89,6 +91,13 @@ TRANSACTIONS_SNUBA_MAP = {
 SESSIONS_FIELD_LIST = ["release", "sessions", "sessions_crashed", "users", "users_crashed"]
 
 SESSIONS_SNUBA_MAP = {column: column for column in SESSIONS_FIELD_LIST}
+METRICS_SNUBA_MAP = {
+    "timestamp": "timestamp",
+    "project_id": "project_id",
+    "transaction.duration": "transaction.duration",
+    "organization_id": "org_id",
+}
+METRICS_FIELD_LIST = ["timestamp", "project_id"]
 
 # This maps the public column aliases to the discover dataset column names.
 # Longer term we would like to not expose the transactions dataset directly
@@ -106,6 +115,7 @@ DATASETS = {
     Dataset.Transactions: TRANSACTIONS_SNUBA_MAP,
     Dataset.Discover: DISCOVER_COLUMN_MAP,
     Dataset.Sessions: SESSIONS_SNUBA_MAP,
+    Dataset.Metrics: METRICS_SNUBA_MAP,
 }
 
 # Store the internal field names to save work later on.
@@ -116,6 +126,7 @@ DATASET_FIELDS = {
     Dataset.Transactions: list(TRANSACTIONS_SNUBA_MAP.values()),
     Dataset.Discover: list(DISCOVER_COLUMN_MAP.values()),
     Dataset.Sessions: SESSIONS_FIELD_LIST,
+    Dataset.Metrics: METRICS_FIELD_LIST,
 }
 
 SNUBA_OR = "or"
@@ -1003,6 +1014,13 @@ def resolve_column(dataset):
         if dataset == Dataset.Discover:
             if isinstance(col, (list, tuple)) or col == "project_id":
                 return col
+        elif dataset == Dataset.Metrics:
+            if col in DATASETS[dataset]:
+                return DATASETS[dataset][col]
+            tag_id = indexer.resolve(col)
+            if tag_id is None:
+                raise InvalidSearchQuery(f"Unknown field: {col}")
+            return f"tags[{tag_id}]"
         else:
             if (
                 col in DATASET_FIELDS[dataset]

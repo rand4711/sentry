@@ -55,8 +55,15 @@ from sentry.search.events.fields import (
 )
 from sentry.search.events.filter import ParsedTerm, ParsedTerms
 from sentry.search.events.types import HistogramParams, ParamsType, SelectType, WhereType
+from sentry.sentry_metrics import indexer
 from sentry.utils.dates import outside_retention_with_modified_start, to_timestamp
-from sentry.utils.snuba import Dataset, QueryOutsideRetentionError, raw_snql_query, resolve_column
+from sentry.utils.snuba import (
+    Dataset,
+    QueryOutsideRetentionError,
+    bulk_snql_query,
+    raw_snql_query,
+    resolve_column,
+)
 from sentry.utils.validators import INVALID_ID_DETAILS, INVALID_SPAN_ID, WILDCARD_NOT_ALLOWED
 
 
@@ -150,11 +157,14 @@ class QueryBuilder:
         Mapping[str, Callable[[SearchFilter], Optional[WhereType]]],
     ]:
         from sentry.search.events.datasets.discover import DiscoverDatasetConfig
+        from sentry.search.events.datasets.metrics import MetricsDatasetConfig
         from sentry.search.events.datasets.sessions import SessionsDatasetConfig
 
         self.config: DatasetConfig
         if self.dataset in [Dataset.Discover, Dataset.Transactions, Dataset.Events]:
             self.config = DiscoverDatasetConfig(self)
+        elif self.dataset == Dataset.Metrics:
+            self.config = MetricsDatasetConfig(self)
         elif self.dataset == Dataset.Sessions:
             self.config = SessionsDatasetConfig(self)
         else:
@@ -165,6 +175,9 @@ class QueryBuilder:
         search_filter_converter = self.config.search_filter_converter
 
         return field_alias_converter, function_converter, search_filter_converter
+
+    def resolve_entity(self):
+        return Entity(self.dataset.value, sample=self.sample_rate)
 
     def resolve_limitby(self, limitby: Optional[Tuple[str, int]]) -> Optional[LimitBy]:
         if limitby is None:
@@ -186,8 +199,7 @@ class QueryBuilder:
         where_conditions: List[WhereType] = []
         for term in parsed_terms:
             if isinstance(term, SearchFilter):
-                condition = self.format_search_filter(term)
-                if condition:
+                if condition := self.format_search_filter(term):
                     where_conditions.append(condition)
 
         return where_conditions
@@ -510,6 +522,7 @@ class QueryBuilder:
         return snql_function.snql_column(arguments, alias)
 
     def resolve_division(self, dividend: SelectType, divisor: SelectType, alias: str) -> SelectType:
+        """Safe version of division where we check that the divisor is greater than 0 first or return None"""
         return Function(
             "if",
             [
@@ -1405,3 +1418,111 @@ class HistogramQueryBuilder(QueryBuilder):
             base_groupby += [self.resolve_column(field) for field in self.additional_groupby]
 
         return base_groupby
+
+
+class MetricsQueryBuilder(QueryBuilder):
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            # Dataset will always be Metrics
+            Dataset.Metrics,
+            *args,
+            **kwargs,
+        )
+
+    def _default_filter_converter(self, search_filter: SearchFilter) -> Optional[WhereType]:
+        name = search_filter.key.name
+        operator = search_filter.operator
+        value = search_filter.value.value
+
+        # We need to use the metrics indexer for both name & value
+        lhs = self.resolve_column(name)
+        is_tag = isinstance(lhs, Column) and lhs.subscriptable == "tags"
+        if is_tag:
+            value = indexer.resolve(value)
+
+        # timestamp{,.to_{hour,day}} need a datetime string
+        # last_seen needs an integer
+        if isinstance(value, datetime) and name not in TIMESTAMP_FIELDS:
+            value = int(to_timestamp(value)) * 1000
+
+        if name in TIMESTAMP_FIELDS:
+            if (
+                operator in ["<", "<="]
+                and value < self.params["start"]
+                or operator in [">", ">="]
+                and value > self.params["end"]
+            ):
+                raise InvalidSearchQuery(
+                    "Filter on timestamp is outside of the selected date range."
+                )
+
+        # TODO(wmak): If name is a tag, value MUST be an int (see the related check for value being string on base)
+
+        # TODO(wmak): Need to handle `has` queries, basically check that tags.keys has the value?
+
+        is_null_condition = None
+        # TODO(wmak): Skip this for all non-nullable keys not just event.type
+        if search_filter.operator in ("!=", "NOT IN") and not is_tag:
+            # Handle null columns on inequality comparisons. Any comparison
+            # between a value and a null will result to null, so we need to
+            # explicitly check for whether the condition is null, and OR it
+            # together with the inequality check.
+            is_null_condition = Condition(Function("isNull", [lhs]), Op.EQ, 1)
+
+        condition = Condition(lhs, Op(search_filter.operator), value)
+
+        if is_null_condition:
+            return Or(conditions=[is_null_condition, condition])
+        else:
+            return condition
+
+    def resolve_params(self) -> List[WhereType]:
+        conditions = super().resolve_params()
+        conditions.append(
+            Condition(self.column("organization_id"), Op.EQ, self.params["organization_id"])
+        )
+        return conditions
+
+    def get_snql_query(self) -> List[Query]:
+        """Because of the way metrics are structured a single request can result in >1 snql query"""
+        distribution_functions = []
+        set_functions = []
+        for function in self.aggregates:
+            if function.function.startswith("quantile"):
+                distribution_functions.append(function)
+            elif function.function.startswith("uniq"):
+                set_functions.append(function)
+
+        queries = []
+
+        for entity, functions in [
+            ("metrics_distributions", distribution_functions),
+            ("metrics_sets", set_functions),
+        ]:
+            if len(functions) > 0:
+                select = [
+                    column
+                    for column in self.columns
+                    if not isinstance(column, CurriedFunction) or column in functions
+                ]
+                queries.append(
+                    Query(
+                        dataset=self.dataset.value,
+                        match=Entity(entity, sample=self.sample_rate),
+                        select=select,
+                        array_join=self.array_join,
+                        where=self.where,
+                        having=self.having,
+                        groupby=self.groupby,
+                        orderby=self.orderby,
+                        limit=self.limit,
+                        offset=self.offset,
+                        limitby=self.limitby,
+                        turbo=self.turbo,
+                    )
+                )
+
+        return queries
+
+    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
+        return bulk_snql_query(self.get_snql_query(), referrer, use_cache)
