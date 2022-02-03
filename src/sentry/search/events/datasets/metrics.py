@@ -165,6 +165,30 @@ class MetricsDatasetConfig(DatasetConfig):
                     ),
                     default_result_type="integer",
                 ),
+                fields.SnQLFunction(
+                    "failure_rate",
+                    snql_aggregate=lambda args, alias: Function(
+                        "divide",
+                        [
+                            self._build_failure_count(args),
+                            Function(
+                                "countMergeIf",
+                                [
+                                    Column("count"),
+                                    Function(
+                                        "equals",
+                                        [
+                                            Column("metric_id"),
+                                            self.resolve_metric("transaction.duration"),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                        alias,
+                    ),
+                    default_result_type="integer",
+                ),
             ]
         }
 
@@ -172,6 +196,37 @@ class MetricsDatasetConfig(DatasetConfig):
             function_converter[alias] = function_converter[name].alias_as(alias)
 
         return function_converter
+
+    def _build_failure_count(
+        self,
+        args: Mapping[str, Union[str, Column, SelectType, int, float]],
+    ) -> SelectType:
+        statuses = [indexer.resolve(status) for status in ["ok", "cancelled", "unknown"]]
+        return Function(
+            "countMergeIf",
+            [
+                Column("count"),
+                Function(
+                    "and",
+                    [
+                        Function(
+                            "equals",
+                            [
+                                Column("metric_id"),
+                                self.resolve_metric("transaction.duration"),
+                            ],
+                        ),
+                        Function(
+                            "notIn",
+                            [
+                                self.builder.column("transaction.status"),
+                                list(status for status in statuses if status is not None),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        )
 
     def _resolve_percentile(
         self,

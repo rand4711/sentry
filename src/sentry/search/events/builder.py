@@ -1521,11 +1521,14 @@ class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder)
         set_functions = []
         for function in self.aggregates:
             # TODO(wmak): hacky af, need a better way to bind functions to their respective datasets
+            # If querying metrics is cheap, maybe we take the metric_id per function?
             if function.alias and function.alias.startswith("p"):
                 distribution_functions.append(function)
             elif function.alias and function.alias.startswith("count_unique"):
                 set_functions.append(function)
-            elif function.alias and function.alias.startswith("tp"):
+            elif function.alias and function.alias.startswith("tpm"):
+                distribution_functions.append(function)
+            elif function.alias and function.alias.startswith("failure"):
                 distribution_functions.append(function)
 
         queries = []
