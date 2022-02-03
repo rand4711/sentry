@@ -91,6 +91,9 @@ def monkeypatch_honcho_write(self, message):
 
     blank_color = (74, 62, 86)
 
+    if name.strip() in ["post-process-forwarder", "getsentry-outcomes", "metrics", "ingest"]:
+        return
+
     prefix = "{name_fg}{name}{reset} {indicator_bg} {reset} ".format(
         name=name.ljust(self.width),
         name_fg="\x1b[38;2;%s;%s;%sm" % SERVICE_COLORS.get(message.name, blank_color),
