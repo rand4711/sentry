@@ -94,8 +94,16 @@ SESSIONS_SNUBA_MAP = {column: column for column in SESSIONS_FIELD_LIST}
 METRICS_SNUBA_MAP = {
     "timestamp": "timestamp",
     "project_id": "project_id",
-    "transaction.duration": "transaction.duration",
     "organization_id": "org_id",
+    "measurements.fp": "sentry.transactions.measurements.fp",
+    "measurements.fcp": "sentry.transactions.measurements.fcp",
+    "measurements.lcp": "sentry.transactions.measurements.lcp",
+    "measurements.fid": "sentry.transactions.measurements.fid",
+    "measurements.cls": "sentry.transactions.measurements.cls",
+    "measurements.ttfb": "sentry.transactions.measurements.ttfb",
+    "measurements.ttfb.requesttime": "sentry.transactions.measurements.ttfb.requesttime",
+    "transaction.duration": "sentry.transactions.transaction.duration",
+    "user": "sentry.transactions.user",
 }
 METRICS_FIELD_LIST = ["timestamp", "project_id"]
 

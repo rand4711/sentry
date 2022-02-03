@@ -7,12 +7,6 @@ from sentry.search.utils import InvalidQuery
 from sentry.snuba import discover
 from sentry.utils.snuba import SnubaTSResult
 
-# TODO: determine these based on sentry/snuba/events.py
-METRICS_SUPPORTED_COLUMNS = {
-    "transaction.duration",
-    "avg(transaction.duration)",
-}
-
 
 def timeseries_query(
     selected_columns: Sequence[str],
@@ -40,7 +34,6 @@ def timeseries_query(
 
     # This query cannot be enahnced with metrics, use discover
     results = []
-    print(metrics_compatible)
     if metrics_compatible:
         try:
             metrics_query = MetricsTimeseriesQueryBuilder(
@@ -53,6 +46,7 @@ def timeseries_query(
             )
             # Getting the 0th result for now, will need to consolidate multiple query results later
             result = metrics_query.run_query(referrer + ".metrics-enhanced")
+            result = discover.transform_results(result, metrics_query.function_alias_map, {}, None)
             result["data"] = (
                 discover.zerofill(
                     result["data"],

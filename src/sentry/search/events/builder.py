@@ -1519,7 +1519,7 @@ class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder)
         distribution_functions = []
         set_functions = []
         for function in self.aggregates:
-            if function.alias and function.alias.startswith("p50"):
+            if function.alias and function.alias.startswith("p"):
                 distribution_functions.append(function)
             elif function.function.startswith("uniq"):
                 set_functions.append(function)

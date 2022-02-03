@@ -19,7 +19,12 @@ type DataType = {
   chart: WidgetDataResult & ReturnType<typeof transformEventsRequestToArea>;
 };
 
-const MEPSable = [PerformanceWidgetSetting.P50_DURATION_AREA];
+const MEPSable = [
+  PerformanceWidgetSetting.P50_DURATION_AREA,
+  PerformanceWidgetSetting.P75_DURATION_AREA,
+  PerformanceWidgetSetting.P95_DURATION_AREA,
+  PerformanceWidgetSetting.P75_LCP_AREA,
+];
 const metricsSettings = (
   props: PerformanceWidgetProps
 ): Record<string, string> | undefined => {
