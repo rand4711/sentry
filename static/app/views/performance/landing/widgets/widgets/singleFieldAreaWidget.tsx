@@ -6,6 +6,7 @@ import pick from 'lodash/pick';
 import _EventsRequest from 'sentry/components/charts/eventsRequest';
 import {getInterval} from 'sentry/components/charts/utils';
 import {t} from 'sentry/locale';
+import {QueryBatchNode} from 'sentry/utils/performance/contexts/genericQueryBatcher';
 import withApi from 'sentry/utils/withApi';
 import _DurationChart from 'sentry/views/performance/charts/chart';
 
@@ -31,7 +32,7 @@ const metricsSettings = (
 ): Record<string, string> | undefined => {
   if (MEPSable.includes(props.chartSetting)) {
     return {
-      metricsEnhanced: '1',
+      metricsEnhanced: 1,
     };
   }
   return undefined;
@@ -50,25 +51,30 @@ export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
     () => ({
       fields: props.fields[0],
       component: provided => (
-        <EventsRequest
-          {...pick(provided, eventsRequestQueryProps)}
-          limit={1}
-          includePrevious
-          includeTransformedData
-          partial
-          currentSeriesNames={[field]}
-          previousSeriesNames={[`previous ${field}`]}
-          query={provided.eventView.getQueryWithAdditionalConditions()}
-          interval={getInterval(
-            {
-              start: provided.start,
-              end: provided.end,
-              period: provided.period,
-            },
-            'medium'
+        <QueryBatchNode batchProperty="yAxis">
+          {({queryBatching}) => (
+            <EventsRequest
+              {...pick(provided, eventsRequestQueryProps)}
+              limit={1}
+              queryBatching={queryBatching}
+              includePrevious
+              includeTransformedData
+              partial
+              currentSeriesNames={[field]}
+              previousSeriesNames={[`previous ${field}`]}
+              query={provided.eventView.getQueryWithAdditionalConditions()}
+              interval={getInterval(
+                {
+                  start: provided.start,
+                  end: provided.end,
+                  period: provided.period,
+                },
+                'medium'
+              )}
+              queryExtras={metricsSettings(props)}
+            />
           )}
-          queryExtras={metricsSettings(props)}
-        />
+        </QueryBatchNode>
       ),
       transform: transformEventsRequestToArea,
     }),

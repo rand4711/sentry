@@ -131,11 +131,7 @@ class OrganizationEventsStatsEndpoint(OrganizationEventsV2EndpointBase):  # type
                 "organizations:performance-use-metrics", False
             )
 
-            metrics_enhanced = (
-                referrer in METRICS_ENHANCE_REFERRERS
-                and performance_use_metrics
-                and request.GET.get("metricsEnhanced") == "1"
-            )
+            metrics_enhanced = performance_use_metrics and request.GET.get("metricsEnhanced") == "1"
             sentry_sdk.set_tag("performance.use_metrics", metrics_enhanced)
 
         def get_event_stats(
@@ -188,6 +184,7 @@ class OrganizationEventsStatsEndpoint(OrganizationEventsV2EndpointBase):  # type
                         request.GET.get("withoutZerofill") == "1" and has_chart_interpolation
                     ),
                     comparison_delta=comparison_delta,
+                    metrics_enhanced=metrics_enhanced,
                 ),
                 status=200,
             )

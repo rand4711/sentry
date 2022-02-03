@@ -291,6 +291,7 @@ class OrganizationEventsV2EndpointBase(OrganizationEventsEndpointBase):
         allow_partial_buckets: bool = False,
         zerofill_results: bool = True,
         comparison_delta: Optional[timedelta] = None,
+        metrics_enhanced: bool = False,
     ) -> Dict[str, Any]:
         with self.handle_query_errors():
             with sentry_sdk.start_span(
@@ -316,6 +317,14 @@ class OrganizationEventsV2EndpointBase(OrganizationEventsEndpointBase):
                         error=InvalidSearchQuery(),
                         top_events=top_events,
                     )
+                    print(metrics_enhanced, rollup)
+                    if metrics_enhanced:
+                        rollups = [86400, 3600, 60, 10]
+                        if rollup not in rollups:
+                            for interval in rollups:
+                                if interval < rollup:
+                                    rollup = interval
+                                    break
                 # If the user sends an invalid interval, use the default instead
                 except InvalidSearchQuery:
                     sentry_sdk.set_tag("user.invalid_interval", request.GET.get("interval"))

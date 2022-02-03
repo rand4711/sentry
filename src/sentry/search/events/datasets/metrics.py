@@ -105,7 +105,19 @@ class MetricsDatasetConfig(DatasetConfig):
                     snql_aggregate=lambda args, alias: Function(
                         "divide",
                         [
-                            Function("countMerge", [Column("count")]),
+                            Function(
+                                "countMergeIf",
+                                [
+                                    Column("count"),
+                                    Function(
+                                        "equals",
+                                        [
+                                            Column("metric_id"),
+                                            self.resolve_metric("transaction.duration"),
+                                        ],
+                                    ),
+                                ],
+                            ),
                             Function("divide", [args["interval"], 60]),
                         ],
                         alias,
@@ -118,7 +130,22 @@ class MetricsDatasetConfig(DatasetConfig):
                     calculated_args=[resolve_metric_id],
                     snql_aggregate=lambda args, alias: Function(
                         "divide",
-                        [Function("countMerge", [Column("count")]), args["interval"]],
+                        [
+                            Function(
+                                "countMergeIf",
+                                [
+                                    Column("count"),
+                                    Function(
+                                        "equals",
+                                        [
+                                            Column("metric_id"),
+                                            self.resolve_metric("transaction.duration"),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            args["interval"],
+                        ],
                         alias,
                     ),
                     optional_args=[fields.IntervalDefault("interval", 1, None)],

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Mapping, Match, Optional, Set, Tuple, Union, cast
 
@@ -1519,6 +1520,7 @@ class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder)
         distribution_functions = []
         set_functions = []
         for function in self.aggregates:
+            # TODO(wmak): hacky af, need a better way to bind functions to their respective datasets
             if function.alias and function.alias.startswith("p"):
                 distribution_functions.append(function)
             elif function.alias and function.alias.startswith("count_unique"):
@@ -1550,4 +1552,13 @@ class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder)
         return queries
 
     def run_query(self, referrer: str, use_cache: bool = False) -> Any:
-        return raw_snql_query(self.get_snql_query()[0], referrer, use_cache)
+        results = bulk_snql_query(self.get_snql_query(), referrer, use_cache)
+        time_map = defaultdict(dict)
+        meta = []
+        for result in results:
+            for row in result["data"]:
+                time_map[row["time"]].update(row)
+            meta += result["meta"]
+
+        final = {"data": list(time_map.values()), "meta": meta}
+        return final
