@@ -24,6 +24,7 @@ const MEPSable = [
   PerformanceWidgetSetting.P75_DURATION_AREA,
   PerformanceWidgetSetting.P95_DURATION_AREA,
   PerformanceWidgetSetting.P75_LCP_AREA,
+  PerformanceWidgetSetting.TPM_AREA,
 ];
 const metricsSettings = (
   props: PerformanceWidgetProps

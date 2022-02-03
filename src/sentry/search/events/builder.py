@@ -1521,8 +1521,10 @@ class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder)
         for function in self.aggregates:
             if function.alias and function.alias.startswith("p"):
                 distribution_functions.append(function)
-            elif function.function.startswith("uniq"):
+            elif function.alias and function.alias.startswith("count_unique"):
                 set_functions.append(function)
+            elif function.alias and function.alias.startswith("tp"):
+                distribution_functions.append(function)
 
         queries = []
 

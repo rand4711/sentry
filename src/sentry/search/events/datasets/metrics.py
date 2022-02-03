@@ -7,6 +7,7 @@ from sentry.api.event_search import SearchFilter
 from sentry.exceptions import InvalidSearchQuery
 from sentry.search.events import fields
 from sentry.search.events.builder import QueryBuilder
+from sentry.search.events.constants import FUNCTION_ALIASES
 from sentry.search.events.datasets.base import DatasetConfig
 from sentry.search.events.types import SelectType, WhereType
 from sentry.sentry_metrics import indexer
@@ -51,7 +52,7 @@ class MetricsDatasetConfig(DatasetConfig):
             "name": "metric_id",
             "fn": lambda args: self.resolve_metric(args["column"]),
         }
-        return {
+        function_converter = {
             function.name: function
             for function in [
                 fields.SnQLFunction(
@@ -100,6 +101,30 @@ class MetricsDatasetConfig(DatasetConfig):
                     default_result_type="duration",
                 ),
                 fields.SnQLFunction(
+                    "epm",
+                    snql_aggregate=lambda args, alias: Function(
+                        "divide",
+                        [
+                            Function("countMerge", [Column("count")]),
+                            Function("divide", [args["interval"], 60]),
+                        ],
+                        alias,
+                    ),
+                    optional_args=[fields.IntervalDefault("interval", 1, None)],
+                    default_result_type="number",
+                ),
+                fields.SnQLFunction(
+                    "eps",
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: Function(
+                        "divide",
+                        [Function("countMerge", [Column("count")]), args["interval"]],
+                        alias,
+                    ),
+                    optional_args=[fields.IntervalDefault("interval", 1, None)],
+                    default_result_type="number",
+                ),
+                fields.SnQLFunction(
                     "count_unique",
                     required_args=[fields.ColumnTagArg("column")],
                     calculated_args=[resolve_metric_id],
@@ -115,6 +140,11 @@ class MetricsDatasetConfig(DatasetConfig):
                 ),
             ]
         }
+
+        for alias, name in FUNCTION_ALIASES.items():
+            function_converter[alias] = function_converter[name].alias_as(alias)
+
+        return function_converter
 
     def _resolve_percentile(
         self,
