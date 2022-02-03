@@ -16,7 +16,7 @@ const FEATURE_FLAG = 'metrics-performance-ui';
  */
 function MetricsSwitch({onSwitch}: {onSwitch: () => void}) {
   const organization = useOrganization();
-  const {isMetricsData, setIsMetricsData} = useMetricsSwitch();
+  const {isMetricsData, isMetricsEnhanced, setIsMetricsData} = useMetricsSwitch();
 
   function handleToggle() {
     onSwitch();
@@ -27,7 +27,7 @@ function MetricsSwitch({onSwitch}: {onSwitch: () => void}) {
     <Feature features={[FEATURE_FLAG]} organization={organization}>
       <Label>
         {t('Metrics Data')}
-        <Switch isActive={isMetricsData} toggle={handleToggle} size="lg" />
+        <Switch isActive={isMetricsEnhanced} toggle={handleToggle} size="lg" />
       </Label>
     </Feature>
   );
@@ -49,17 +49,13 @@ const MetricsSwitchContext = createContext({
 });
 
 function MetricsSwitchContextContainer({children}: {children: React.ReactNode}) {
-  const organization = useOrganization();
-
   const metricsEnhancedKey = `metrics.performance.enhanced`;
   const [isMetricsEnhanced, setIsMetricsEnhanced] = useState(
     localStorage.getItem(metricsEnhancedKey) === 'true'
   );
 
-  const localStorageKey = `metrics.performance:${organization.slug}`;
-
   function handleSetIsMetricsData(value: boolean) {
-    localStorage.setItem(localStorageKey, value.toString());
+    localStorage.setItem(metricsEnhancedKey, value.toString());
     setIsMetricsEnhanced(value);
   }
 
