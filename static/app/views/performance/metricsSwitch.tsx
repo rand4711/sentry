@@ -57,21 +57,16 @@ function MetricsSwitchContextContainer({children}: {children: React.ReactNode}) 
   );
 
   const localStorageKey = `metrics.performance:${organization.slug}`;
-  const [isMetricsData, setIsMetricsData] = useState(
-    localStorage.getItem(localStorageKey) === 'true'
-  );
 
   function handleSetIsMetricsData(value: boolean) {
     localStorage.setItem(localStorageKey, value.toString());
-    localStorage.setItem(metricsEnhancedKey, value.toString());
-    setIsMetricsData(value);
     setIsMetricsEnhanced(value);
   }
 
   return (
     <MetricsSwitchContext.Provider
       value={{
-        isMetricsData: isMetricsData && organization.features.includes(FEATURE_FLAG),
+        isMetricsData: false,
         setIsMetricsData: handleSetIsMetricsData,
         isMetricsEnhanced,
       }}
