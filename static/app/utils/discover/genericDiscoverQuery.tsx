@@ -11,6 +11,7 @@ import EventView, {
 } from 'sentry/utils/discover/eventView';
 import {usePerformanceEventView} from 'sentry/utils/performance/contexts/performanceEventViewContext';
 import useOrganization from 'sentry/utils/useOrganization';
+import {useMetricsSwitch} from 'sentry/views/performance/metricsSwitch';
 
 export type GenericChildrenProps<T> = {
   isLoading: boolean;
@@ -53,6 +54,8 @@ type BaseDiscoverQueryProps = {
    * on the OrganizationEventsV2Endpoint view.
    */
   referrer?: string;
+
+  isMetricsEnhanced?: boolean;
 };
 
 export type DiscoverQueryPropsWithContext = BaseDiscoverQueryProps & OptionalContextProps;
@@ -137,7 +140,7 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
   }
 
   getPayload(props: Props<T, P>) {
-    const {cursor, limit, noPagination, referrer} = props;
+    const {cursor, limit, noPagination, referrer, isMetricsEnhanced} = props;
     const payload = this.props.getRequestPayload
       ? this.props.getRequestPayload(props)
       : props.eventView.getEventsAPIPayload(props.location);
@@ -153,6 +156,9 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
     }
     if (referrer) {
       payload.referrer = referrer;
+    }
+    if (isMetricsEnhanced) {
+      payload.isMetricsEnhanced = '1';
     }
 
     return payload;
@@ -241,11 +247,21 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
 export function GenericDiscoverQuery<T, P>(props: OuterProps<T, P>) {
   const orgSlug = props.orgSlug ?? useOrganization().slug;
   const eventView = props.eventView ?? usePerformanceEventView();
+
   const _props: Props<T, P> = {
     ...props,
     orgSlug,
     eventView,
   };
+
+  try {
+    const metricsContext = useMetricsSwitch();
+    if (metricsContext.isMetricsEnhanced) {
+      _props.isMetricsEnhanced = true;
+    }
+  } catch (e) {
+    //
+  }
   return <_GenericDiscoverQuery<T, P> {..._props} />;
 }
 
