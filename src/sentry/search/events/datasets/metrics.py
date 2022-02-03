@@ -1,14 +1,16 @@
-from typing import Callable, Mapping, Optional, Union
+from typing import Callable, List, Mapping, Optional, Union
 
 from snuba_sdk.column import Column
+from snuba_sdk.conditions import Op
 from snuba_sdk.function import Function
 
-from sentry.api.event_search import SearchFilter
+from sentry.api.event_search import SearchFilter, SearchKey, SearchValue
 from sentry.exceptions import InvalidSearchQuery
-from sentry.search.events import fields
+from sentry.models.project import Project
+from sentry.search.events import constants, fields
 from sentry.search.events.builder import QueryBuilder
-from sentry.search.events.constants import FUNCTION_ALIASES
 from sentry.search.events.datasets.base import DatasetConfig
+from sentry.search.events.filter import to_list
 from sentry.search.events.types import SelectType, WhereType
 from sentry.sentry_metrics import indexer
 
@@ -33,11 +35,83 @@ class MetricsDatasetConfig(DatasetConfig):
     def search_filter_converter(
         self,
     ) -> Mapping[str, Callable[[SearchFilter], Optional[WhereType]]]:
-        return {}
+        return {
+            constants.PROJECT_ALIAS: self._project_slug_filter_converter,
+            constants.PROJECT_NAME_ALIAS: self._project_slug_filter_converter,
+        }
+
+    # Query Filters
+    def _project_slug_filter_converter(self, search_filter: SearchFilter) -> Optional[WhereType]:
+        """Convert project slugs to ids and create a filter based on those.
+        This is cause we only store project ids in clickhouse.
+        """
+        value = search_filter.value.value
+
+        if Op(search_filter.operator) == Op.EQ and value == "":
+            raise InvalidSearchQuery(
+                'Cannot query for has:project or project:"" as every event will have a project'
+            )
+
+        slugs = to_list(value)
+        project_slugs: Mapping[str, int] = {
+            slug: project_id
+            for slug, project_id in self.builder.project_slugs.items()
+            if slug in slugs
+        }
+        missing: List[str] = [slug for slug in slugs if slug not in project_slugs]
+        if missing and search_filter.operator in constants.EQUALITY_OPERATORS:
+            raise InvalidSearchQuery(
+                f"Invalid query. Project(s) {', '.join(missing)} do not exist or are not actively selected."
+            )
+        # Sorted for consistent query results
+        project_ids = list(sorted(project_slugs.values()))
+        if project_ids:
+            # Create a new search filter with the correct values
+            converted_filter = self.builder.convert_search_filter_to_condition(
+                SearchFilter(
+                    SearchKey("project.id"),
+                    search_filter.operator,
+                    SearchValue(project_ids if search_filter.is_in_filter else project_ids[0]),
+                )
+            )
+            if converted_filter:
+                if search_filter.operator in constants.EQUALITY_OPERATORS:
+                    self.builder.projects_to_filter.update(project_ids)
+                return converted_filter
+
+        return None
 
     @property
     def field_alias_converter(self) -> Mapping[str, Callable[[str], SelectType]]:
-        return {}
+        return {
+            constants.PROJECT_ALIAS: self._resolve_project_slug_alias,
+            constants.PROJECT_NAME_ALIAS: self._resolve_project_slug_alias,
+        }
+
+    def _resolve_project_slug_alias(self, alias: str) -> SelectType:
+        project_ids = {
+            project_id
+            for project_id in self.builder.params.get("project_id", [])
+            if isinstance(project_id, int)
+        }
+
+        # Try to reduce the size of the transform by using any existing conditions on projects
+        # Do not optimize projects list if conditions contain OR operator
+        if not self.builder.has_or_condition and len(self.builder.projects_to_filter) > 0:
+            project_ids &= self.builder.projects_to_filter
+
+        projects = Project.objects.filter(id__in=project_ids).values("slug", "id")
+
+        return Function(
+            "transform",
+            [
+                self.builder.column("project.id"),
+                [project["id"] for project in projects],
+                [project["slug"] for project in projects],
+                "",
+            ],
+            alias,
+        )
 
     def resolve_metric(self, value: str) -> int:
         metric_id = indexer.resolve(METRICS_MAP.get(value, value))
@@ -151,6 +225,61 @@ class MetricsDatasetConfig(DatasetConfig):
                     optional_args=[fields.IntervalDefault("interval", 1, None)],
                     default_result_type="number",
                 ),
+                # TODO(wmak): actually implement user_misery
+                fields.SnQLFunction(
+                    "user_misery",
+                    snql_aggregate=lambda _, alias: Function(
+                        "countMergeIf",
+                        [
+                            Column("count"),
+                            Function(
+                                "equals",
+                                [
+                                    Column("metric_id"),
+                                    self.resolve_metric("transaction.duration"),
+                                ],
+                            ),
+                        ],
+                        alias,
+                    ),
+                ),
+                # TODO(wmak): actually implement apdex
+                fields.SnQLFunction(
+                    "apdex",
+                    snql_aggregate=lambda _, alias: Function(
+                        "countMergeIf",
+                        [
+                            Column("count"),
+                            Function(
+                                "equals",
+                                [
+                                    Column("metric_id"),
+                                    self.resolve_metric("transaction.duration"),
+                                ],
+                            ),
+                        ],
+                    ),
+                    default_result_type="integer",
+                ),
+                # TODO(wmak): actually implement apdex
+                fields.SnQLFunction(
+                    "count_miserable",
+                    required_args=[fields.ColumnTagArg("column")],
+                    snql_aggregate=lambda _, alias: Function(
+                        "countMergeIf",
+                        [
+                            Column("count"),
+                            Function(
+                                "equals",
+                                [
+                                    Column("metric_id"),
+                                    self.resolve_metric("transaction.duration"),
+                                ],
+                            ),
+                        ],
+                    ),
+                    default_result_type="integer",
+                ),
                 fields.SnQLFunction(
                     "count_unique",
                     required_args=[fields.ColumnTagArg("column")],
@@ -192,7 +321,7 @@ class MetricsDatasetConfig(DatasetConfig):
             ]
         }
 
-        for alias, name in FUNCTION_ALIASES.items():
+        for alias, name in constants.FUNCTION_ALIASES.items():
             function_converter[alias] = function_converter[name].alias_as(alias)
 
         return function_converter

@@ -8,7 +8,7 @@ from sentry import features
 from sentry.api.bases import NoProjects, OrganizationEventsV2EndpointBase
 from sentry.api.paginator import GenericOffsetPaginator
 from sentry.search.events.fields import is_function
-from sentry.snuba import discover
+from sentry.snuba import discover, metrics_enhanced_performance
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +51,16 @@ class OrganizationEventsV2Endpoint(OrganizationEventsV2EndpointBase):
         referrer = (
             referrer if referrer in ALLOWED_EVENTS_V2_REFERRERS else "api.organization-events-v2"
         )
+        performance_use_metrics = features.has(
+            "organizations:performance-use-metrics", organization, actor=request.user
+        )
+        metrics_enhanced = performance_use_metrics and request.GET.get("metricsEnhanced") == "1"
 
         def data_fn(offset, limit):
-            return discover.query(
+            dataset = metrics_enhanced_performance if metrics_enhanced else discover
+            return dataset.query(
                 selected_columns=self.get_field_list(organization, request),
-                query=request.GET.get("query"),
+                query="",
                 params=params,
                 equations=self.get_equation_list(organization, request),
                 orderby=self.get_orderby(request),

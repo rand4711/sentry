@@ -162,8 +162,14 @@ class QueryBuilder:
         from sentry.search.events.datasets.sessions import SessionsDatasetConfig
 
         self.config: DatasetConfig
+        self.custom_threshold_columns = {}
         if self.dataset in [Dataset.Discover, Dataset.Transactions, Dataset.Events]:
             self.config = DiscoverDatasetConfig(self)
+            self.custom_threshold_columns = {
+                "apdex()",
+                "count_miserable(user)",
+                "user_misery()",
+            }
         elif self.dataset == Dataset.Metrics:
             self.config = MetricsDatasetConfig(self)
         elif self.dataset == Dataset.Sessions:
@@ -399,11 +405,7 @@ class QueryBuilder:
 
         # Add threshold config alias if there's a function that depends on it
         # TODO: this should be replaced with an explicit request for the project_threshold_config as a column
-        for column in {
-            "apdex()",
-            "count_miserable(user)",
-            "user_misery()",
-        }:
+        for column in self.custom_threshold_columns:
             if (
                 column in stripped_columns
                 and PROJECT_THRESHOLD_CONFIG_ALIAS not in stripped_columns
@@ -576,7 +578,7 @@ class QueryBuilder:
                     resolved_orderby = bare_orderby
                 else:
                     resolved_orderby = self.resolve_column(bare_orderby)
-            except NotImplementedError:
+            except (NotImplementedError, InvalidSearchQuery):
                 resolved_orderby = None
 
             direction = Direction.DESC if orderby.startswith("-") else Direction.ASC
@@ -1472,10 +1474,16 @@ class MetricsQueryBuilder(QueryBuilder):
         distribution_functions = []
         set_functions = []
         for function in self.aggregates:
-            if function.function.startswith("quantile"):
+            # TODO(wmak): hacky af, need a better way to bind functions to their respective datasets
+            # If querying metrics is cheap, maybe we take the metric_id per function?
+            if function.alias and function.alias.startswith("p"):
                 distribution_functions.append(function)
-            elif function.function.startswith("uniq"):
+            elif function.alias and function.alias.startswith("count_unique"):
                 set_functions.append(function)
+            elif function.alias and function.alias.startswith("tpm"):
+                distribution_functions.append(function)
+            elif function.alias and function.alias.startswith("failure"):
+                distribution_functions.append(function)
 
         queries = []
 
@@ -1489,6 +1497,11 @@ class MetricsQueryBuilder(QueryBuilder):
                     for column in self.columns
                     if not isinstance(column, CurriedFunction) or column in functions
                 ]
+                orderby = [
+                    orderby
+                    for orderby in self.orderby
+                    if not isinstance(orderby.exp, CurriedFunction) or orderby.exp in functions
+                ]
                 queries.append(
                     Query(
                         dataset=self.dataset.value,
@@ -1498,7 +1511,7 @@ class MetricsQueryBuilder(QueryBuilder):
                         where=self.where,
                         having=self.having,
                         groupby=self.groupby,
-                        orderby=self.orderby,
+                        orderby=orderby,
                         limit=self.limit,
                         offset=self.offset,
                         limitby=self.limitby,
@@ -1509,7 +1522,21 @@ class MetricsQueryBuilder(QueryBuilder):
         return queries
 
     def run_query(self, referrer: str, use_cache: bool = False) -> Any:
-        return bulk_snql_query(self.get_snql_query(), referrer, use_cache)
+        results = bulk_snql_query(self.get_snql_query(), referrer, use_cache)
+        groupby_map = defaultdict(dict)
+        meta = []
+        for result in results:
+            for row in result["data"]:
+                row["transaction"] = indexer.reverse_resolve(row["transaction"])
+                groupby_map[row["transaction"]].update(row)
+            meta += result["meta"]
+
+        for metadata in meta:
+            if metadata["name"] == "transaction":
+                metadata["type"] = "String"
+
+        final = {"data": list(groupby_map.values()), "meta": meta}
+        return final
 
 
 class MetricsTimeseriesQueryBuilder(MetricsQueryBuilder, TimeseriesQueryBuilder):
