@@ -44,11 +44,18 @@ const Label = styled('label')`
 
 const MetricsSwitchContext = createContext({
   isMetricsData: false,
+  isMetricsEnhanced: false,
   setIsMetricsData: (_isMetricsData: boolean) => {},
 });
 
 function MetricsSwitchContextContainer({children}: {children: React.ReactNode}) {
   const organization = useOrganization();
+
+  const metricsEnhancedKey = `metrics.performance.enhanced`;
+  const [isMetricsEnhanced, setIsMetricsEnhanced] = useState(
+    localStorage.getItem(metricsEnhancedKey) === 'true'
+  );
+
   const localStorageKey = `metrics.performance:${organization.slug}`;
   const [isMetricsData, setIsMetricsData] = useState(
     localStorage.getItem(localStorageKey) === 'true'
@@ -56,7 +63,9 @@ function MetricsSwitchContextContainer({children}: {children: React.ReactNode}) 
 
   function handleSetIsMetricsData(value: boolean) {
     localStorage.setItem(localStorageKey, value.toString());
+    localStorage.setItem(metricsEnhancedKey, value.toString());
     setIsMetricsData(value);
+    setIsMetricsEnhanced(value);
   }
 
   return (
@@ -64,6 +73,7 @@ function MetricsSwitchContextContainer({children}: {children: React.ReactNode}) 
       value={{
         isMetricsData: isMetricsData && organization.features.includes(FEATURE_FLAG),
         setIsMetricsData: handleSetIsMetricsData,
+        isMetricsEnhanced,
       }}
     >
       {children}

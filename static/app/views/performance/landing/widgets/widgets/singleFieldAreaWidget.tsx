@@ -9,6 +9,7 @@ import {t} from 'sentry/locale';
 import {QueryBatchNode} from 'sentry/utils/performance/contexts/genericQueryBatcher';
 import withApi from 'sentry/utils/withApi';
 import _DurationChart from 'sentry/views/performance/charts/chart';
+import {useMetricsSwitch} from 'sentry/views/performance/metricsSwitch';
 
 import {GenericPerformanceWidget} from '../components/performanceWidget';
 import {transformEventsRequestToArea} from '../transforms/transformEventsToArea';
@@ -42,6 +43,8 @@ export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
   const {ContainerActions} = props;
   const globalSelection = props.eventView.getPageFilters();
 
+  const metricsContext = useMetricsSwitch();
+
   if (props.fields.length !== 1) {
     throw new Error(`Single field area can only accept a single field (${props.fields})`);
   }
@@ -71,7 +74,7 @@ export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
                 },
                 'medium'
               )}
-              queryExtras={metricsSettings(props)}
+              queryExtras={metricsContext.isMetricsEnhanced ? metricsSettings(props) : {}}
             />
           )}
         </QueryBatchNode>
