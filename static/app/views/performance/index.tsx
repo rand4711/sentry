@@ -1,3 +1,5 @@
+import {Location} from 'history';
+
 import Feature from 'sentry/components/acl/feature';
 import Alert from 'sentry/components/alert';
 import {t} from 'sentry/locale';
@@ -9,10 +11,11 @@ import {MetricsSwitchContextContainer} from './metricsSwitch';
 
 type Props = {
   organization: Organization;
+  location: Location;
   children: React.ReactChildren;
 };
 
-function PerformanceContainer({organization, children}: Props) {
+function PerformanceContainer({organization, location, children}: Props) {
   function renderNoAccess() {
     return (
       <PageContent>
@@ -28,7 +31,9 @@ function PerformanceContainer({organization, children}: Props) {
       organization={organization}
       renderDisabled={renderNoAccess}
     >
-      <MetricsSwitchContextContainer>{children}</MetricsSwitchContextContainer>
+      <MetricsSwitchContextContainer location={location}>
+        {children}
+      </MetricsSwitchContextContainer>
     </Feature>
   );
 }

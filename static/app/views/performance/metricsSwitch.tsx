@@ -1,11 +1,13 @@
 import {createContext, useContext, useState} from 'react';
+import {browserHistory} from 'react-router';
 import styled from '@emotion/styled';
+import {Location} from 'history';
 
 import Feature from 'sentry/components/acl/feature';
 import Switch from 'sentry/components/switchButton';
 import {t} from 'sentry/locale';
 import space from 'sentry/styles/space';
-import localStorage from 'sentry/utils/localStorage';
+import {decodeScalar} from 'sentry/utils/queryString';
 import useOrganization from 'sentry/utils/useOrganization';
 
 const FEATURE_FLAG = 'metrics-performance-ui';
@@ -16,11 +18,11 @@ const FEATURE_FLAG = 'metrics-performance-ui';
  */
 function MetricsSwitch({onSwitch}: {onSwitch: () => void}) {
   const organization = useOrganization();
-  const {isMetricsData, isMetricsEnhanced, setIsMetricsData} = useMetricsSwitch();
+  const {isMetricsEnhanced, setIsMetricsData} = useMetricsSwitch();
 
   function handleToggle() {
     onSwitch();
-    setIsMetricsData(!isMetricsData);
+    setIsMetricsData(!isMetricsEnhanced);
   }
 
   return (
@@ -48,14 +50,35 @@ const MetricsSwitchContext = createContext({
   setIsMetricsData: (_isMetricsData: boolean) => {},
 });
 
-function MetricsSwitchContextContainer({children}: {children: React.ReactNode}) {
-  const metricsEnhancedKey = `metrics.performance.enhanced`;
+function MetricsSwitchContextContainer({
+  children,
+  location,
+}: {
+  location: Location;
+  children: React.ReactNode;
+}) {
   const [isMetricsEnhanced, setIsMetricsEnhanced] = useState(
-    localStorage.getItem(metricsEnhancedKey) === 'true'
+    decodeScalar(location.query.metricsEnhanced) === 'true'
   );
 
   function handleSetIsMetricsData(value: boolean) {
-    localStorage.setItem(metricsEnhancedKey, value.toString());
+    if (value) {
+      browserHistory.push({
+        ...location,
+        query: {
+          ...location.query,
+          metricsEnhanced: true,
+        },
+      });
+    } else {
+      browserHistory.push({
+        ...location,
+        query: {
+          ...location.query,
+          metricsEnhanced: false,
+        },
+      });
+    }
     setIsMetricsEnhanced(value);
   }
 

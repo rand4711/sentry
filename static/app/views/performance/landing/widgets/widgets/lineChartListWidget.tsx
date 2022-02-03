@@ -14,6 +14,7 @@ import {getAggregateAlias} from 'sentry/utils/discover/fields';
 import {MutableSearch} from 'sentry/utils/tokenizeSearch';
 import withApi from 'sentry/utils/withApi';
 import _DurationChart from 'sentry/views/performance/charts/chart';
+import {useMetricsSwitch} from 'sentry/views/performance/metricsSwitch';
 import {transactionSummaryRouteWithQuery} from 'sentry/views/performance/transactionSummary/utils';
 import {getPerformanceDuration} from 'sentry/views/performance/utils';
 
@@ -29,7 +30,7 @@ import SelectableList, {
 import {transformDiscoverToList} from '../transforms/transformDiscoverToList';
 import {transformEventsRequestToArea} from '../transforms/transformEventsToArea';
 import {PerformanceWidgetProps, QueryDefinition, WidgetDataResult} from '../types';
-import {eventsRequestQueryProps} from '../utils';
+import {eventsRequestQueryProps, metricsSettings} from '../utils';
 import {PerformanceWidgetSetting} from '../widgetDefinitions';
 
 type DataType = {
@@ -55,6 +56,7 @@ export function LineChartListWidget(props: PerformanceWidgetProps) {
   const {ContainerActions} = props;
 
   const field = props.fields[0];
+  const metricsContext = useMetricsSwitch();
 
   if (props.fields.length !== 1) {
     throw new Error(
@@ -114,7 +116,7 @@ export function LineChartListWidget(props: PerformanceWidgetProps) {
       },
       transform: transformDiscoverToList,
     }),
-    [props.chartSetting]
+    [props.chartSetting, props.location.query.metricsEnhanced]
   );
 
   const chartQuery = useMemo<QueryDefinition<DataType, WidgetDataResult>>(() => {
@@ -171,6 +173,7 @@ export function LineChartListWidget(props: PerformanceWidgetProps) {
               },
               'medium'
             )}
+            queryExtras={metricsContext.isMetricsEnhanced ? metricsSettings(props) : {}}
           />
         );
       },

@@ -14,29 +14,10 @@ import {useMetricsSwitch} from 'sentry/views/performance/metricsSwitch';
 import {GenericPerformanceWidget} from '../components/performanceWidget';
 import {transformEventsRequestToArea} from '../transforms/transformEventsToArea';
 import {PerformanceWidgetProps, QueryDefinition, WidgetDataResult} from '../types';
-import {eventsRequestQueryProps} from '../utils';
-import {PerformanceWidgetSetting} from '../widgetDefinitions';
+import {eventsRequestQueryProps, metricsSettings} from '../utils';
 
 type DataType = {
   chart: WidgetDataResult & ReturnType<typeof transformEventsRequestToArea>;
-};
-
-const MEPSable = [
-  PerformanceWidgetSetting.P50_DURATION_AREA,
-  PerformanceWidgetSetting.P75_DURATION_AREA,
-  PerformanceWidgetSetting.P95_DURATION_AREA,
-  PerformanceWidgetSetting.P75_LCP_AREA,
-  PerformanceWidgetSetting.TPM_AREA,
-];
-const metricsSettings = (
-  props: PerformanceWidgetProps
-): Record<string, string> | undefined => {
-  if (MEPSable.includes(props.chartSetting)) {
-    return {
-      metricsEnhanced: 1,
-    };
-  }
-  return undefined;
 };
 
 export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
@@ -81,7 +62,7 @@ export function SingleFieldAreaWidget(props: PerformanceWidgetProps) {
       ),
       transform: transformEventsRequestToArea,
     }),
-    [props.chartSetting]
+    [props.chartSetting, props.location.query.metricsEnhanced]
   );
 
   const Queries = {

@@ -1,6 +1,25 @@
 import {PROJECT_PERFORMANCE_TYPE} from '../../utils';
 
+import {PerformanceWidgetProps} from './types';
 import {PerformanceWidgetSetting} from './widgetDefinitions';
+
+const MEPSable = [
+  PerformanceWidgetSetting.P50_DURATION_AREA,
+  PerformanceWidgetSetting.P75_DURATION_AREA,
+  PerformanceWidgetSetting.P95_DURATION_AREA,
+  PerformanceWidgetSetting.P75_LCP_AREA,
+  PerformanceWidgetSetting.TPM_AREA,
+];
+export const metricsSettings = (
+  props: PerformanceWidgetProps
+): Record<string, string> | undefined => {
+  if (MEPSable.includes(props.chartSetting)) {
+    return {
+      metricsEnhanced: '1',
+    };
+  }
+  return undefined;
+};
 
 export const eventsRequestQueryProps = [
   'children',
