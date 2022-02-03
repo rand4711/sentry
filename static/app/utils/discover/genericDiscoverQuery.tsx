@@ -158,7 +158,7 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
       payload.referrer = referrer;
     }
     if (isMetricsEnhanced) {
-      payload.isMetricsEnhanced = '1';
+      payload.metricsEnhanced = '1';
     }
 
     return payload;
