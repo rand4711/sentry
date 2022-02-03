@@ -1,4 +1,4 @@
-from typing import Callable, Mapping, Optional
+from typing import Callable, Mapping, Optional, Union
 
 from snuba_sdk.column import Column
 from snuba_sdk.function import Function
@@ -60,20 +60,7 @@ class MetricsDatasetConfig(DatasetConfig):
                         fields.with_default("transaction.duration", fields.NumericColumn("column")),
                     ],
                     calculated_args=[resolve_metric_id],
-                    snql_aggregate=lambda args, alias: Function(
-                        "arrayElement",
-                        [
-                            Function(
-                                "quantilesMergeIf(0.5)",
-                                [
-                                    Column("percentiles"),
-                                    Function("equals", [Column("metric_id"), args["metric_id"]]),
-                                ],
-                            ),
-                            1,
-                        ],
-                        alias,
-                    ),
+                    snql_aggregate=lambda args, alias: self._resolve_percentile(args, alias, 0.5),
                     default_result_type="duration",
                 ),
                 fields.SnQLFunction(
@@ -82,14 +69,34 @@ class MetricsDatasetConfig(DatasetConfig):
                         fields.with_default("transaction.duration", fields.NumericColumn("column")),
                     ],
                     calculated_args=[resolve_metric_id],
-                    snql_aggregate=lambda args, alias: Function(
-                        "quantilesMergeIf(0.75)",
-                        [
-                            Column("percentiles"),
-                            Function("equals", [Column("metric_id"), args["metric_id"]]),
-                        ],
-                        alias,
-                    ),
+                    snql_aggregate=lambda args, alias: self._resolve_percentile(args, alias, 0.75),
+                    default_result_type="duration",
+                ),
+                fields.SnQLFunction(
+                    "p90",
+                    optional_args=[
+                        fields.with_default("transaction.duration", fields.NumericColumn("column")),
+                    ],
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: self._resolve_percentile(args, alias, 0.90),
+                    default_result_type="duration",
+                ),
+                fields.SnQLFunction(
+                    "p95",
+                    optional_args=[
+                        fields.with_default("transaction.duration", fields.NumericColumn("column")),
+                    ],
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: self._resolve_percentile(args, alias, 0.95),
+                    default_result_type="duration",
+                ),
+                fields.SnQLFunction(
+                    "p99",
+                    optional_args=[
+                        fields.with_default("transaction.duration", fields.NumericColumn("column")),
+                    ],
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: self._resolve_percentile(args, alias, 0.99),
                     default_result_type="duration",
                 ),
                 fields.SnQLFunction(
@@ -108,3 +115,24 @@ class MetricsDatasetConfig(DatasetConfig):
                 ),
             ]
         }
+
+    def _resolve_percentile(
+        self,
+        args: Mapping[str, Union[str, Column, SelectType, int, float]],
+        alias: str,
+        fixed_percentile: float,
+    ) -> SelectType:
+        return Function(
+            "arrayElement",
+            [
+                Function(
+                    f"quantilesMergeIf({fixed_percentile})",
+                    [
+                        Column("percentiles"),
+                        Function("equals", [Column("metric_id"), args["metric_id"]]),
+                    ],
+                ),
+                1,
+            ],
+            alias,
+        )
