@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Dict, Optional, Sequence
 
 from sentry.discover.arithmetic import categorize_columns
+from sentry.exceptions import InvalidSearchQuery
 from sentry.search.events.builder import MetricsQueryBuilder, MetricsTimeseriesQueryBuilder
 from sentry.search.utils import InvalidQuery
 from sentry.snuba import discover
@@ -57,8 +58,8 @@ def query(
         except InvalidQuery as error:
             raise error
         # any remaining errors mean we should try again with discover
-        # except Exception:
-        #     results = []
+        except InvalidSearchQuery:
+            results = None
 
     # Either metrics failed, or this isn't a query we can enhance with metrics
     if results is None or not metrics_compatible:
@@ -141,8 +142,8 @@ def timeseries_query(
         except InvalidQuery as error:
             raise error
         # any remaining errors mean we should try again with discover
-        # except Exception:
-        #     results = []
+        except InvalidSearchQuery:
+            results = None
 
     # Either metrics failed, or this isn't a query we can enhance with metrics
     if results is None or not metrics_compatible:

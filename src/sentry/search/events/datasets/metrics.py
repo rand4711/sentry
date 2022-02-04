@@ -96,7 +96,7 @@ class MetricsDatasetConfig(DatasetConfig):
         """Filter for outlier if duration:>15min, else drop it"""
         value = search_filter.value.value
 
-        if value == "15min" and SearchFilter.operator == ">":
+        if value == 900000 and search_filter.operator == "<":
             return self.builder.convert_search_filter_to_condition(
                 SearchFilter(
                     SearchKey("is_duration_outlier"),
@@ -104,6 +104,7 @@ class MetricsDatasetConfig(DatasetConfig):
                     SearchValue("true"),
                 )
             )
+        raise InvalidSearchQuery()
         return None
 
     @property
