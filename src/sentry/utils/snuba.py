@@ -267,7 +267,7 @@ class QueryOutsideGroupActivityError(Exception):
     pass
 
 
-SnubaTSResult = namedtuple("SnubaTSResult", ("data", "start", "end", "rollup"))
+SnubaTSResult = namedtuple("SnubaTSResult", ("data", "start", "end", "rollup", "meta"))
 
 
 @contextmanager

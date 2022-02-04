@@ -49,7 +49,6 @@ from sentry.utils.snuba import (
     is_span_op_breakdown,
     naiveify_datetime,
     raw_query,
-    raw_snql_query,
     resolve_column,
     resolve_snuba_aliases,
     to_naive_timestamp,
@@ -576,7 +575,7 @@ def timeseries_query(
                 result["comparisonCount"] = cmp_result_val
 
         result = results[0]
-        return SnubaTSResult({"data": result}, params["start"], params["end"], rollup)
+        return SnubaTSResult({"data": result}, params["start"], params["end"], rollup, meta=False)
 
     with sentry_sdk.start_span(
         op="discover.discover", description="timeseries.filter_transform"
@@ -641,7 +640,9 @@ def timeseries_query(
 
     results = results[0]
 
-    return SnubaTSResult({"data": results}, snuba_filter.start, snuba_filter.end, rollup)
+    return SnubaTSResult(
+        {"data": results}, snuba_filter.start, snuba_filter.end, rollup, meta=False
+    )
 
 
 def create_result_key(result_row, fields, issues) -> str:
@@ -773,6 +774,7 @@ def top_events_timeseries(
                 params["start"],
                 params["end"],
                 rollup,
+                meta=False,
             )
         with sentry_sdk.start_span(
             op="discover.discover", description="top_events.transform_results"
@@ -820,6 +822,7 @@ def top_events_timeseries(
                     params["start"],
                     params["end"],
                     rollup,
+                    meta=False,
                 )
 
         return results
@@ -971,6 +974,7 @@ def top_events_timeseries(
             snuba_filter.start,
             snuba_filter.end,
             rollup,
+            meta=False,
         )
 
     with sentry_sdk.start_span(
@@ -1026,6 +1030,7 @@ def top_events_timeseries(
                 snuba_filter.start,
                 snuba_filter.end,
                 rollup,
+                meta=False,
             )
 
     return results

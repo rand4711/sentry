@@ -51,6 +51,7 @@ def query(
             results = discover.transform_results(
                 results, metrics_query.function_alias_map, {}, None
             )
+            results["meta"]["mep"] = True
             return results
         # raise InvalidQuery since the same thing will happen with discover
         except InvalidQuery as error:
@@ -77,6 +78,7 @@ def query(
             functions_acl=functions_acl,
             use_snql=use_snql,
         )
+        results["meta"]["mep"] = False
 
     # TODO: set meta to include whether query was MEP or not
     return results
@@ -133,7 +135,7 @@ def timeseries_query(
                 else result["data"]
             )
             results = SnubaTSResult(
-                {"data": result["data"]}, params["start"], params["end"], rollup
+                {"data": result["data"]}, params["start"], params["end"], rollup, meta=True
             )
         # raise InvalidQuery since the same thing will happen with discover
         except InvalidQuery as error:
