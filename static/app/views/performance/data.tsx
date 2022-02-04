@@ -514,7 +514,7 @@ function generateBackendPerformanceEventView(
 
   // This is not an override condition since we want the duration to appear in the search bar as a default.
   if (!conditions.hasFilter('transaction.duration') && !isMetricsData) {
-    conditions.setFilterValues('transaction.duration', ['<15m']);
+    // conditions.setFilterValues('transaction.duration', ['<15m']);
   }
 
   // If there is a bare text search, we want to treat it as a search
@@ -605,7 +605,7 @@ function generateMobilePerformanceEventView(
 
   // This is not an override condition since we want the duration to appear in the search bar as a default.
   if (!conditions.hasFilter('transaction.duration') && !isMetricsData) {
-    conditions.setFilterValues('transaction.duration', ['<15m']);
+    // conditions.setFilterValues('transaction.duration', ['<15m']);
   }
 
   // If there is a bare text search, we want to treat it as a search
@@ -676,7 +676,7 @@ function generateFrontendPageloadPerformanceEventView(
 
   // This is not an override condition since we want the duration to appear in the search bar as a default.
   if (!conditions.hasFilter('transaction.duration') && !isMetricsData) {
-    conditions.setFilterValues('transaction.duration', ['<15m']);
+    // conditions.setFilterValues('transaction.duration', ['<15m']);
   }
 
   // If there is a bare text search, we want to treat it as a search
@@ -749,7 +749,7 @@ function generateFrontendOtherPerformanceEventView(
 
   // This is not an override condition since we want the duration to appear in the search bar as a default.
   if (!conditions.hasFilter('transaction.duration') && !isMetricsData) {
-    conditions.setFilterValues('transaction.duration', ['<15m']);
+    // conditions.setFilterValues('transaction.duration', ['<15m']);
   }
 
   // If there is a bare text search, we want to treat it as a search

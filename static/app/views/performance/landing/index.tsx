@@ -22,7 +22,7 @@ import {GenericQueryBatcher} from 'sentry/utils/performance/contexts/genericQuer
 import useTeams from 'sentry/utils/useTeams';
 
 import MetricsSearchBar from '../metricsSearchBar';
-import {MetricsSwitch, useMetricsSwitch} from '../metricsSwitch';
+import {MEPSAlert, MetricsSwitch, useMetricsSwitch} from '../metricsSwitch';
 import Onboarding from '../onboarding';
 import {getTransactionSearchQuery} from '../utils';
 
@@ -97,7 +97,13 @@ export function PerformanceLanding(props: Props) {
   }, []);
 
   const filterString = getTransactionSearchQuery(location, eventView.query);
-  const {isMetricsData} = useMetricsSwitch();
+  const {isMetricsData, setEventView, eventView: metricEventView} = useMetricsSwitch();
+  if (
+    metricEventView?.getQueryWithAdditionalConditions() !==
+    eventView.getQueryWithAdditionalConditions()
+  ) {
+    setEventView(eventView);
+  }
 
   const showOnboarding = shouldShowOnboarding;
 
@@ -194,6 +200,7 @@ export function PerformanceLanding(props: Props) {
                   />
                 )}
               </SearchContainerWithFilter>
+              <MEPSAlert />
               {initiallyLoaded ? (
                 <TeamKeyTransactionManager.Provider
                   organization={organization}

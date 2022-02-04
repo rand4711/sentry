@@ -1,14 +1,22 @@
+import * as React from 'react';
 import {createContext, useContext, useState} from 'react';
 import {browserHistory} from 'react-router';
 import styled from '@emotion/styled';
 import {Location} from 'history';
+import isEqual from 'lodash/isEqual';
 
 import Feature from 'sentry/components/acl/feature';
+import Alert from 'sentry/components/alert';
+import Button from 'sentry/components/button';
 import Switch from 'sentry/components/switchButton';
-import {t} from 'sentry/locale';
+import {IconUpgrade} from 'sentry/icons';
+import {t, tct} from 'sentry/locale';
 import space from 'sentry/styles/space';
+import EventView from 'sentry/utils/discover/eventView';
 import {decodeScalar} from 'sentry/utils/queryString';
+import {MutableSearch} from 'sentry/utils/tokenizeSearch';
 import useOrganization from 'sentry/utils/useOrganization';
+import usePrevious from 'sentry/utils/usePrevious';
 
 const FEATURE_FLAG = 'metrics-performance-ui';
 
@@ -35,6 +43,25 @@ function MetricsSwitch({onSwitch}: {onSwitch: () => void}) {
   );
 }
 
+const checkQueryMEPSable = (_: Location, eventView?: EventView) => {
+  if (!eventView) {
+    return null;
+  }
+
+  const tagKeyAllowList = [
+    'transaction.op',
+    'transaction.status',
+    'is_user_miserable',
+    'http.method',
+  ];
+
+  const conditions = new MutableSearch(eventView.query);
+  const conditionFilters = conditions.getFilterKeys();
+  const result = conditionFilters.every(c => tagKeyAllowList.includes(c));
+
+  return result;
+};
+
 const Label = styled('label')`
   display: flex;
   align-items: center;
@@ -44,10 +71,20 @@ const Label = styled('label')`
   font-weight: normal;
 `;
 
-const MetricsSwitchContext = createContext({
+const MetricsSwitchContext = createContext<{
+  isMetricsData: boolean;
+  isMetricsEnhanced: boolean;
+  hasMEPSChanged: boolean;
+  eventView?: EventView;
+  setIsMetricsData: (a: boolean) => void;
+  setEventView: (e: EventView) => void;
+}>({
   isMetricsData: false,
   isMetricsEnhanced: false,
+  hasMEPSChanged: false,
+  eventView: undefined,
   setIsMetricsData: (_isMetricsData: boolean) => {},
+  setEventView: (_isMetricsData: EventView) => {},
 });
 
 function MetricsSwitchContextContainer({
@@ -57,6 +94,19 @@ function MetricsSwitchContextContainer({
   location: Location;
   children: React.ReactNode;
 }) {
+  const [eventView, _setEventView] = useState<EventView | undefined>(undefined);
+  const setEventView = (e: EventView) => {
+    setTimeout(() => {
+      _setEventView(e);
+      // Put it in timeout since this is a hack to test ui anyway.
+    }, 100);
+  };
+
+  const isQueryMEPS = checkQueryMEPSable(location, eventView);
+  const previousMEPS = usePrevious(isQueryMEPS);
+  const hasMEPSChanged =
+    previousMEPS !== null && isQueryMEPS !== null && !isEqual(isQueryMEPS, previousMEPS);
+
   const [isMetricsEnhanced, setIsMetricsEnhanced] = useState(
     decodeScalar(location.query.metricsEnhanced) === 'true'
   );
@@ -88,6 +138,9 @@ function MetricsSwitchContextContainer({
         isMetricsData: false,
         setIsMetricsData: handleSetIsMetricsData,
         isMetricsEnhanced,
+        hasMEPSChanged,
+        eventView,
+        setEventView,
       }}
     >
       {children}
@@ -101,9 +154,55 @@ function useMetricsSwitch() {
   return contextValue;
 }
 
+function MEPSAlert() {
+  const {hasMEPSChanged} = useMetricsSwitch();
+
+  if (hasMEPSChanged) {
+    return (
+      <Alert type="info" icon={<IconUpgrade />}>
+        <Content>
+          {tct(
+            `We've automatically adjusted your visualizations to reflect a sampled set of transactions. To adjust sampling filters, go to [link:settings] `,
+            {
+              link: (
+                <Button
+                  priority="link"
+                  size="zero"
+                  title={t('Sampling Settings')}
+                  onClick={() => {}}
+                >
+                  {t('settings')}
+                </Button>
+              ),
+            }
+          )}
+          <Actions> </Actions>
+        </Content>
+      </Alert>
+    );
+  }
+  return null;
+}
+
+const Content = styled('div')`
+  display: flex;
+  flex-wrap: wrap;
+
+  @media (min-width: ${p => p.theme.breakpoints[0]}) {
+    justify-content: space-between;
+  }
+`;
+
+const Actions = styled('div')`
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: ${space(1)};
+`;
+
 export {
   MetricsSwitch,
   MetricsSwitchContextContainer,
   useMetricsSwitch,
   MetricsSwitchContext,
+  MEPSAlert,
 };
