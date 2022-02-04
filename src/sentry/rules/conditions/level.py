@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from typing import Any, Callable, Tuple
-from typing import
 
 from django import forms
 
