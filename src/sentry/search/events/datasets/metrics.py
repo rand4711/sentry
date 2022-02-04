@@ -101,7 +101,7 @@ class MetricsDatasetConfig(DatasetConfig):
                 SearchFilter(
                     SearchKey("is_duration_outlier"),
                     "=",
-                    SearchValue("true"),
+                    SearchValue("false"),
                 )
             )
         raise InvalidSearchQuery()
