@@ -1,18 +1,21 @@
 from typing import Callable, List, Mapping, Optional, Union
 
+import sentry_sdk
 from snuba_sdk.column import Column
 from snuba_sdk.conditions import Op
 from snuba_sdk.function import Function
 
 from sentry.api.event_search import SearchFilter, SearchKey, SearchValue
+from sentry.discover.models import TeamKeyTransaction
 from sentry.exceptions import InvalidSearchQuery
-from sentry.models.project import Project
+from sentry.models import Project, ProjectTeam
 from sentry.search.events import constants, fields
 from sentry.search.events.builder import QueryBuilder
 from sentry.search.events.datasets.base import DatasetConfig
 from sentry.search.events.filter import to_list
 from sentry.search.events.types import SelectType, WhereType
 from sentry.sentry_metrics import indexer
+from sentry.utils.numbers import format_grouped_length
 
 METRICS_MAP = {
     "measurements.fp": "sentry.transactions.measurements.fp",
@@ -86,6 +89,7 @@ class MetricsDatasetConfig(DatasetConfig):
         return {
             constants.PROJECT_ALIAS: self._resolve_project_slug_alias,
             constants.PROJECT_NAME_ALIAS: self._resolve_project_slug_alias,
+            constants.TEAM_KEY_TRANSACTION_ALIAS: self._resolve_team_key_transaction_alias,
         }
 
     def _resolve_project_slug_alias(self, alias: str) -> SelectType:
@@ -111,6 +115,50 @@ class MetricsDatasetConfig(DatasetConfig):
                 "",
             ],
             alias,
+        )
+
+    def _resolve_team_key_transaction_alias(self, _: str) -> SelectType:
+        org_id = self.builder.params.get("organization_id")
+        project_ids = self.builder.params.get("project_id")
+        team_ids = self.builder.params.get("team_id")
+
+        if org_id is None or team_ids is None or project_ids is None:
+            raise TypeError("Team key transactions parameters cannot be None")
+
+        team_key_transactions = [
+            (project, indexer.resolve(transaction))
+            for project, transaction in TeamKeyTransaction.objects.filter(
+                organization_id=org_id,
+                project_team__in=ProjectTeam.objects.filter(
+                    project_id__in=project_ids, team_id__in=team_ids
+                ),
+            )
+            .order_by("transaction", "project_team__project_id")
+            .values_list("project_team__project_id", "transaction")
+            .distinct("transaction", "project_team__project_id")[
+                : fields.MAX_QUERYABLE_TEAM_KEY_TRANSACTIONS
+            ]
+        ]
+
+        count = len(team_key_transactions)
+
+        # NOTE: this raw count is not 100% accurate because if it exceeds
+        # `MAX_QUERYABLE_TEAM_KEY_TRANSACTIONS`, it will not be reflected
+        sentry_sdk.set_tag("team_key_txns.count", count)
+        sentry_sdk.set_tag(
+            "team_key_txns.count.grouped", format_grouped_length(count, [10, 100, 250, 500])
+        )
+
+        if count == 0:
+            return Function("toInt8", [0], constants.TEAM_KEY_TRANSACTION_ALIAS)
+
+        return Function(
+            "in",
+            [
+                (self.builder.column("project_id"), self.builder.column("transaction")),
+                team_key_transactions,
+            ],
+            constants.TEAM_KEY_TRANSACTION_ALIAS,
         )
 
     def resolve_metric(self, value: str) -> int:

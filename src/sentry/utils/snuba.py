@@ -93,7 +93,6 @@ SESSIONS_FIELD_LIST = ["release", "sessions", "sessions_crashed", "users", "user
 SESSIONS_SNUBA_MAP = {column: column for column in SESSIONS_FIELD_LIST}
 METRICS_SNUBA_MAP = {
     "timestamp": "timestamp",
-    "team_key_transaction": "project",
     "project_id": "project_id",
     "project.id": "project_id",
     "organization_id": "org_id",

@@ -1471,8 +1471,15 @@ class MetricsQueryBuilder(QueryBuilder):
 
     def get_snql_query(self) -> List[Query]:
         """Because of the way metrics are structured a single request can result in >1 snql query"""
+        # Can't actually do this since the queries depend on each other
+        pass
+
+    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
         distribution_functions = []
+        distribution_orderby = []
         set_functions = []
+        set_orderby = []
+        general_orderby = []
         for function in self.aggregates:
             # TODO(wmak): hacky af, need a better way to bind functions to their respective datasets
             # If querying metrics is cheap, maybe we take the metric_id per function?
@@ -1485,57 +1492,79 @@ class MetricsQueryBuilder(QueryBuilder):
             elif function.alias and function.alias.startswith("failure"):
                 distribution_functions.append(function)
 
-        queries = []
+        for orderby in self.orderby:
+            if orderby.exp in distribution_functions:
+                distribution_orderby.append(orderby)
+            elif orderby.exp in set_functions:
+                set_orderby.append(orderby)
+            else:
+                distribution_orderby.append(orderby)
+                set_orderby.append(orderby)
+                general_orderby.append(orderby)
 
-        for entity, functions in [
-            ("metrics_distributions", distribution_functions),
-            ("metrics_sets", set_functions),
-        ]:
+        if len(distribution_orderby) > len(general_orderby) and len(set_orderby) > len(
+            general_orderby
+        ):
+            raise InvalidSearchQuery(
+                "Cannot have orderby across both set & distribution with metrics womp womp"
+            )
+
+        query_framework = [
+            ("metrics_distributions", distribution_functions, distribution_orderby),
+            ("metrics_sets", set_functions, set_orderby),
+        ]
+        if len(set_orderby) > len(general_orderby):
+            query_framework.reverse()
+
+        transaction_map = defaultdict(dict)
+        meta = []
+        # TODO(wmak): ensure groupby contains transaction(?)
+        for entity, functions, orderby in query_framework:
             if len(functions) > 0:
                 select = [
                     column
                     for column in self.columns
                     if not isinstance(column, CurriedFunction) or column in functions
                 ]
-                orderby = [
-                    orderby
-                    for orderby in self.orderby
-                    if not isinstance(orderby.exp, CurriedFunction) or orderby.exp in functions
-                ]
-                queries.append(
+                if transaction_map:
+                    where = self.where + [
+                        Condition(
+                            self.resolve_column("transaction"), Op.IN, list(transaction_map.keys())
+                        )
+                    ]
+                    offset = Offset(0)
+                else:
+                    where = self.where
+                    offset = self.offset
+                result = raw_snql_query(
                     Query(
                         dataset=self.dataset.value,
                         match=Entity(entity, sample=self.sample_rate),
                         select=select,
                         array_join=self.array_join,
-                        where=self.where,
+                        where=where,
                         having=self.having,
                         groupby=self.groupby,
                         orderby=orderby,
                         limit=self.limit,
-                        offset=self.offset,
+                        offset=offset,
                         limitby=self.limitby,
                         turbo=self.turbo,
-                    )
+                    ),
+                    referrer,
+                    use_cache,
                 )
-
-        return queries
-
-    def run_query(self, referrer: str, use_cache: bool = False) -> Any:
-        results = bulk_snql_query(self.get_snql_query(), referrer, use_cache)
-        groupby_map = defaultdict(dict)
-        meta = []
-        for result in results:
-            for row in result["data"]:
-                row["transaction"] = indexer.reverse_resolve(row["transaction"])
-                groupby_map[row["transaction"]].update(row)
-            meta += result["meta"]
+                for row in result["data"]:
+                    transaction_id = row["transaction"]
+                    row["transaction"] = indexer.reverse_resolve(transaction_id)
+                    transaction_map[transaction_id].update(row)
+                meta += result["meta"]
 
         for metadata in meta:
             if metadata["name"] == "transaction":
                 metadata["type"] = "String"
 
-        final = {"data": list(groupby_map.values()), "meta": meta}
+        final = {"data": list(transaction_map.values()), "meta": meta}
         return final
 
 
