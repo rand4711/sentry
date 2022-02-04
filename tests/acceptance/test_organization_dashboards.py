@@ -747,12 +747,7 @@ class OrganizationDashboardLayoutAcceptanceTest(AcceptanceTestCase):
             chart_type_input.send_keys("Area", Keys.ENTER)
             button = self.browser.element('[data-test-id="add-widget"]')
             button.click()
-
             self.page.wait_until_loaded()
-
-            self.browser.snapshot(
-                "dashboards - change from big number to other chart of more than 2 rows keeps height"
-            )
 
             # Try to decrease height by >1 row, should be at 2 rows
             self.page.enter_edit_state()
@@ -798,14 +793,11 @@ class OrganizationDashboardLayoutAcceptanceTest(AcceptanceTestCase):
 
             self.page.wait_until_loaded()
 
-            self.browser.snapshot("dashboards - change from area chart to big number keeps height")
-
             # Decrease height by >1 row, should stop at 1 row
             self.page.enter_edit_state()
             resizeHandle = self.browser.element(WIDGET_RESIZE_HANDLE)
             action = ActionChains(self.browser.driver)
             action.drag_and_drop_by_offset(resizeHandle, 0, -400).perform()
-
             self.page.save_dashboard()
 
             self.browser.snapshot(
