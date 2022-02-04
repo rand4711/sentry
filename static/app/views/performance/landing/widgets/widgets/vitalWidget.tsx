@@ -55,14 +55,9 @@ export function transformFieldsWithStops(props: {
     };
   }
 
-  const poorCountField = `count_if(${field},greaterOrEquals,${poorStop})`;
-  const mehCountField = `equation|count_if(${field},greaterOrEquals,${mehStop}) - count_if(${field},greaterOrEquals,${poorStop})`;
-  const goodCountField = `equation|count_if(${field},greaterOrEquals,0) - count_if(${field},greaterOrEquals,${mehStop})`;
-
-  const otherRequiredFieldsForQuery = [
-    `count_if(${field},greaterOrEquals,${mehStop})`,
-    `count_if(${field},greaterOrEquals,0)`,
-  ];
+  const poorCountField = `count_poor_vitals(${field})`;
+  const mehCountField = `count_meh_vitals(${field})`;
+  const goodCountField = `count_good_vitals(${field})`;
 
   const vitalFields = {
     poorCountField,
@@ -70,12 +65,7 @@ export function transformFieldsWithStops(props: {
     goodCountField,
   };
 
-  const fieldsList = [
-    poorCountField,
-    ...otherRequiredFieldsForQuery,
-    mehCountField,
-    goodCountField,
-  ];
+  const fieldsList = [poorCountField, mehCountField, goodCountField];
 
   return {
     sortField: poorCountField,
@@ -110,7 +100,6 @@ export function VitalWidget(props: PerformanceWidgetProps) {
 
           _eventView.fields = [
             {field: 'transaction'},
-            {field: 'title'},
             {field: 'project.id'},
             ...fieldFromProps,
           ];
@@ -310,10 +299,9 @@ export function VitalWidget(props: PerformanceWidgetProps) {
 }
 
 function getVitalDataForListItem(listItem: TableDataRow) {
-  const poorData: number =
-    (listItem.count_if_measurements_lcp_greaterOrEquals_4000 as number) || 0;
-  const mehData: number = (listItem['equation[0]'] as number) || 0;
-  const goodData: number = (listItem['equation[1]'] as number) || 0;
+  const poorData: number = (listItem.count_poor_vitals_measurements_lcp as number) || 0;
+  const mehData: number = (listItem.count_meh_vitals_measurements_lcp as number) || 0;
+  const goodData: number = (listItem.count_good_vitals_measurements_lcp as number) || 0;
   const _vitalData = {
     poor: poorData,
     meh: mehData,

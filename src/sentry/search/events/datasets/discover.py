@@ -454,6 +454,48 @@ class DiscoverDatasetConfig(DatasetConfig):
                     default_result_type="integer",
                 ),
                 SnQLFunction(
+                    "count_poor_vitals",
+                    required_args=[ColumnTagArg("column")],
+                    snql_aggregate=lambda args, alias: Function(
+                        "countIf",
+                        [args["column"], Function("greaterOrEquals", [args["column"], 4000])],
+                        alias,
+                    ),
+                    default_result_type="integer",
+                ),
+                SnQLFunction(
+                    "count_meh_vitals",
+                    required_args=[ColumnTagArg("column")],
+                    snql_aggregate=lambda args, alias: Function(
+                        "countIf",
+                        [
+                            args["column"],
+                            Function(
+                                "and",
+                                [
+                                    Function("less", [args["column"], 4000]),
+                                    Function("greaterOrEquals", [args["column"], 2500]),
+                                ],
+                            ),
+                        ],
+                        alias,
+                    ),
+                    default_result_type="integer",
+                ),
+                SnQLFunction(
+                    "count_good_vitals",
+                    required_args=[ColumnTagArg("column")],
+                    snql_aggregate=lambda args, alias: Function(
+                        "countIf",
+                        [
+                            args["column"],
+                            Function("lessOrEquals", [args["column"], 2500]),
+                        ],
+                        alias,
+                    ),
+                    default_result_type="integer",
+                ),
+                SnQLFunction(
                     "count_unique",
                     required_args=[ColumnTagArg("column")],
                     snql_aggregate=lambda args, alias: Function("uniq", [args["column"]], alias),

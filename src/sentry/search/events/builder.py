@@ -1491,6 +1491,8 @@ class MetricsQueryBuilder(QueryBuilder):
                 distribution_functions.append(function)
             elif function.alias and function.alias.startswith("failure"):
                 distribution_functions.append(function)
+            elif function.alias and function.alias.startswith("count"):
+                distribution_functions.append(function)
 
         for orderby in self.orderby:
             if orderby.exp in distribution_functions:
@@ -1536,21 +1538,22 @@ class MetricsQueryBuilder(QueryBuilder):
                 else:
                     where = self.where
                     offset = self.offset
+                query = Query(
+                    dataset=self.dataset.value,
+                    match=Entity(entity, sample=self.sample_rate),
+                    select=select,
+                    array_join=self.array_join,
+                    where=where,
+                    having=self.having,
+                    groupby=self.groupby,
+                    orderby=orderby,
+                    limit=self.limit,
+                    offset=offset,
+                    limitby=self.limitby,
+                    turbo=self.turbo,
+                )
                 result = raw_snql_query(
-                    Query(
-                        dataset=self.dataset.value,
-                        match=Entity(entity, sample=self.sample_rate),
-                        select=select,
-                        array_join=self.array_join,
-                        where=where,
-                        having=self.having,
-                        groupby=self.groupby,
-                        orderby=orderby,
-                        limit=self.limit,
-                        offset=offset,
-                        limitby=self.limitby,
-                        turbo=self.turbo,
-                    ),
+                    query,
                     referrer,
                     use_cache,
                 )

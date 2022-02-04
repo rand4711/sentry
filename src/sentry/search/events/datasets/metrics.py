@@ -42,7 +42,7 @@ class MetricsDatasetConfig(DatasetConfig):
             constants.PROJECT_ALIAS: self._project_slug_filter_converter,
             constants.PROJECT_NAME_ALIAS: self._project_slug_filter_converter,
             "event.type": self._event_type_converter,
-            "transaction.duration": self._drop_filter,
+            "transaction.duration": self._outlier_filter,
         }
 
     # Query Filters
@@ -92,7 +92,18 @@ class MetricsDatasetConfig(DatasetConfig):
         assert value == "transaction"
         return None
 
-    def _drop_filter(self, _: SearchFilter) -> None:
+    def _outlier_filter(self, search_filter: SearchFilter) -> None:
+        """Filter for outlier if duration:>15min, else drop it"""
+        value = search_filter.value.value
+
+        if value == "15min" and SearchFilter.operator == ">":
+            return self.builder.convert_search_filter_to_condition(
+                SearchFilter(
+                    SearchKey("is_duration_outlier"),
+                    "=",
+                    SearchValue("true"),
+                )
+            )
         return None
 
     @property
@@ -336,6 +347,84 @@ class MetricsDatasetConfig(DatasetConfig):
                                 ],
                             ),
                         ],
+                    ),
+                    default_result_type="integer",
+                ),
+                fields.SnQLFunction(
+                    "count_poor_vitals",
+                    required_args=[fields.ColumnTagArg("column")],
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: Function(
+                        "countMergeIf",
+                        [
+                            Column("count"),
+                            Function(
+                                "and",
+                                [
+                                    Function("equals", [Column("metric_id"), args["metric_id"]]),
+                                    Function(
+                                        "equals",
+                                        [
+                                            self.builder.resolve_column("measurement_rating"),
+                                            indexer.resolve("poor"),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                        alias,
+                    ),
+                    default_result_type="integer",
+                ),
+                fields.SnQLFunction(
+                    "count_meh_vitals",
+                    required_args=[fields.ColumnTagArg("column")],
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: Function(
+                        "countMergeIf",
+                        [
+                            Column("count"),
+                            Function(
+                                "and",
+                                [
+                                    Function("equals", [Column("metric_id"), args["metric_id"]]),
+                                    Function(
+                                        "equals",
+                                        [
+                                            self.builder.resolve_column("measurement_rating"),
+                                            indexer.resolve("meh"),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                        alias,
+                    ),
+                    default_result_type="integer",
+                ),
+                fields.SnQLFunction(
+                    "count_good_vitals",
+                    required_args=[fields.ColumnTagArg("column")],
+                    calculated_args=[resolve_metric_id],
+                    snql_aggregate=lambda args, alias: Function(
+                        "countMergeIf",
+                        [
+                            Column("count"),
+                            Function(
+                                "and",
+                                [
+                                    Function("equals", [Column("metric_id"), args["metric_id"]]),
+                                    Function(
+                                        "equals",
+                                        [
+                                            self.builder.resolve_column("measurement_rating"),
+                                            indexer.resolve("good"),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                        alias,
                     ),
                     default_result_type="integer",
                 ),
