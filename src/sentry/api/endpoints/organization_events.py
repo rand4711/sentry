@@ -60,7 +60,7 @@ class OrganizationEventsV2Endpoint(OrganizationEventsV2EndpointBase):
             dataset = metrics_enhanced_performance if metrics_enhanced else discover
             return dataset.query(
                 selected_columns=self.get_field_list(organization, request),
-                query="",
+                query=request.GET.get("query"),
                 params=params,
                 equations=self.get_equation_list(organization, request),
                 orderby=self.get_orderby(request),

@@ -143,7 +143,6 @@ class OrganizationEventsStatsEndpoint(OrganizationEventsV2EndpointBase):  # type
             comparison_delta: Optional[datetime],
         ) -> SnubaTSResult:
             dataset = metrics_enhanced_performance if metrics_enhanced else discover
-            query = ""
             if top_events > 0:
                 return discover.top_events_timeseries(
                     timeseries_columns=query_columns,

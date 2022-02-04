@@ -27,7 +27,7 @@ def query(
 ):
     """ """
     metrics_compatible = False
-    if not query and use_snql:
+    if use_snql:
         metrics_compatible = True
 
     results = None
@@ -103,7 +103,7 @@ def timeseries_query(
     # TODO: Parse query to determine if we can do metrics instead of only allowing blank
     # TODO: Technically could do comparison_delta here too, but since we don't use it in performance I'm skipping it
     # use_snql must be enabled since we aren't backporting metrics to the older query functions
-    if not query and comparison_delta is None and use_snql:
+    if comparison_delta is None and use_snql:
         metrics_compatible = True
 
     # This query cannot be enahnced with metrics, use discover

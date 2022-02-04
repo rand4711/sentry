@@ -41,6 +41,8 @@ class MetricsDatasetConfig(DatasetConfig):
         return {
             constants.PROJECT_ALIAS: self._project_slug_filter_converter,
             constants.PROJECT_NAME_ALIAS: self._project_slug_filter_converter,
+            "event.type": self._event_type_converter,
+            "transaction.duration": self._drop_filter,
         }
 
     # Query Filters
@@ -82,6 +84,15 @@ class MetricsDatasetConfig(DatasetConfig):
                     self.builder.projects_to_filter.update(project_ids)
                 return converted_filter
 
+        return None
+
+    def _event_type_converter(self, search_filter: SearchFilter) -> Optional[WhereType]:
+        """Not really a converter, check its transaction, error otherwise"""
+        value = search_filter.value.value
+        assert value == "transaction"
+        return None
+
+    def _drop_filter(self, _: SearchFilter) -> None:
         return None
 
     @property
