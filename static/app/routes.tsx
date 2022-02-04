@@ -1113,6 +1113,19 @@ function buildRoutes() {
     </Route>
   );
 
+  const replayRoutes = (
+    <Route
+      path="/organizations/:orgId/replays/"
+      componentPromise={() => import('sentry/views/replays')}
+      component={SafeLazyLoad}
+    >
+      <IndexRoute
+        componentPromise={() => import('sentry/views/replays/replays')}
+        component={SafeLazyLoad}
+      />
+    </Route>
+  );
+
   const releasesRoutes = (
     <Route path="/organizations/:orgId/releases/">
       <IndexRoute
@@ -1811,6 +1824,7 @@ function buildRoutes() {
       {groupDetailsRoutes}
       {alertRoutes}
       {monitorsRoutes}
+      {replayRoutes}
       {releasesRoutes}
       {activityRoutes}
       {statsRoutes}
