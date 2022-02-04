@@ -11,7 +11,11 @@ import EventView, {
 } from 'sentry/utils/discover/eventView';
 import {usePerformanceEventView} from 'sentry/utils/performance/contexts/performanceEventViewContext';
 import useOrganization from 'sentry/utils/useOrganization';
-import {useMetricsSwitch} from 'sentry/views/performance/metricsSwitch';
+import {
+  MetricsSwitchContext,
+  MetricSwitchContextType,
+  useMetricsSwitch,
+} from 'sentry/views/performance/metricsSwitch';
 
 export type GenericChildrenProps<T> = {
   isLoading: boolean;
@@ -96,6 +100,8 @@ type ComponentProps<T, P> = {
    * A hook for parent orchestrators to pass down data based on query results, unlike afterFetch it is not meant for specializations as it will not modify data.
    */
   didFetch?: (data: T) => void;
+
+  metricsContext?: MetricSwitchContextType;
 };
 
 type Props<T, P> = InnerRequestProps<P> & ReactProps<T> & ComponentProps<T, P>;
@@ -177,8 +183,17 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
   };
 
   fetchData = async () => {
-    const {api, beforeFetch, afterFetch, didFetch, eventView, orgSlug, route, setError} =
-      this.props;
+    const {
+      api,
+      beforeFetch,
+      afterFetch,
+      didFetch,
+      eventView,
+      orgSlug,
+      route,
+      setError,
+      metricsContext,
+    } = this.props;
 
     if (!eventView.isValid()) {
       return;
@@ -202,6 +217,16 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
       if (this.state.tableFetchID !== tableFetchID) {
         // invariant: a different request was initiated after this request
         return;
+      }
+
+      if (data.meta?.mep !== undefined) {
+        setTimeout(() => {
+          if (data.meta?.mep === 'true') {
+            metricsContext?.setQueryMEPS(true);
+          } else {
+            metricsContext?.setQueryMEPS(true);
+          }
+        }, 100);
       }
 
       const tableData = afterFetch ? afterFetch(data, this.props) : data;
@@ -259,10 +284,11 @@ export function GenericDiscoverQuery<T, P>(props: OuterProps<T, P>) {
     if (metricsContext.isMetricsEnhanced) {
       _props.isMetricsEnhanced = true;
     }
+    return <_GenericDiscoverQuery<T, P> {..._props} metricsContext={metricsContext} />;
   } catch (e) {
     //
+    return <_GenericDiscoverQuery<T, P> {..._props} />;
   }
-  return <_GenericDiscoverQuery<T, P> {..._props} />;
 }
 
 export type DiscoverQueryRequestParams = Partial<EventQuery & LocationQuery>;

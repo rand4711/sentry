@@ -71,20 +71,23 @@ const Label = styled('label')`
   font-weight: normal;
 `;
 
-const MetricsSwitchContext = createContext<{
+export type MetricSwitchContextType = {
   isMetricsData: boolean;
   isMetricsEnhanced: boolean;
   hasMEPSChanged: boolean;
   eventView?: EventView;
   setIsMetricsData: (a: boolean) => void;
   setEventView: (e: EventView) => void;
-}>({
+  setQueryMEPS: (a: boolean) => void;
+};
+const MetricsSwitchContext = createContext<MetricSwitchContextType>({
   isMetricsData: false,
   isMetricsEnhanced: false,
   hasMEPSChanged: false,
   eventView: undefined,
   setIsMetricsData: (_isMetricsData: boolean) => {},
   setEventView: (_isMetricsData: EventView) => {},
+  setQueryMEPS: (_: boolean) => {},
 });
 
 function MetricsSwitchContextContainer({
@@ -102,7 +105,9 @@ function MetricsSwitchContextContainer({
     }, 100);
   };
 
-  const isQueryMEPS = checkQueryMEPSable(location, eventView);
+  const [isQueryMEPS, setQueryMEPS] = useState<boolean | null>(null);
+
+  // const isQueryMEPS = checkQueryMEPSable(location, eventView);
   const previousMEPS = usePrevious(isQueryMEPS);
   const hasMEPSChanged =
     previousMEPS !== null && isQueryMEPS !== null && !isEqual(isQueryMEPS, previousMEPS);
@@ -141,6 +146,7 @@ function MetricsSwitchContextContainer({
         hasMEPSChanged,
         eventView,
         setEventView,
+        setQueryMEPS,
       }}
     >
       {children}
