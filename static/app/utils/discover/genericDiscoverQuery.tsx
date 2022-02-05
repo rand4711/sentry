@@ -221,10 +221,10 @@ class _GenericDiscoverQuery<T, P> extends React.Component<Props<T, P>, State<T>>
 
       if (data.meta?.mep !== undefined) {
         setTimeout(() => {
-          if (data.meta?.mep === 'true') {
+          if (data.meta?.mep) {
             metricsContext?.setQueryMEPS(true);
           } else {
-            metricsContext?.setQueryMEPS(true);
+            metricsContext?.setQueryMEPS(false);
           }
         }, 100);
       }

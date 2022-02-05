@@ -105,7 +105,11 @@ function MetricsSwitchContextContainer({
     }, 100);
   };
 
-  const [isQueryMEPS, setQueryMEPS] = useState<boolean | null>(null);
+  const [isQueryMEPS, _setQueryMEPS] = useState<boolean | null>(null);
+
+  const setQueryMEPS = (b: boolean) => {
+    _setQueryMEPS(b);
+  };
 
   // const isQueryMEPS = checkQueryMEPSable(location, eventView);
   const previousMEPS = usePrevious(isQueryMEPS);
