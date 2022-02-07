@@ -4,6 +4,7 @@ import {HeaderTitleLegend} from 'sentry/components/charts/styles';
 import QuestionTooltip from 'sentry/components/questionTooltip';
 import TextOverflow from 'sentry/components/textOverflow';
 import space from 'sentry/styles/space';
+import {MEPSPill} from 'sentry/views/performance/metricsSwitch';
 
 import {
   GenericPerformanceWidgetProps,
@@ -21,8 +22,9 @@ export function WidgetHeader<T extends WidgetDataConstraint>(
         <StyledHeaderTitleLegend data-test-id="performance-widget-title">
           <TextOverflow>{title}</TextOverflow>
           <QuestionTooltip position="top" size="sm" title={titleTooltip} />
+          <MEPSPill />
         </StyledHeaderTitleLegend>
-        {Subtitle ? <Subtitle {...props} /> : null}
+        <SubtitleContainer>{Subtitle ? <Subtitle {...props} /> : null}</SubtitleContainer>
       </TitleContainer>
       <HeaderActionsContainer>
         {HeaderActions && <HeaderActions {...props} />}
@@ -40,6 +42,12 @@ const TitleContainer = styled('div')`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+`;
+
+const SubtitleContainer = styled('div')`
+  display: flex;
+  flex-direction: row;
+  gap: ${space(1)};
 `;
 
 const WidgetHeaderContainer = styled('div')`

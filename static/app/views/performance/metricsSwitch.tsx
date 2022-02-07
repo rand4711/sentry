@@ -9,6 +9,7 @@ import Feature from 'sentry/components/acl/feature';
 import Alert from 'sentry/components/alert';
 import Button from 'sentry/components/button';
 import Switch from 'sentry/components/switchButton';
+import Tag from 'sentry/components/tag';
 import {IconUpgrade} from 'sentry/icons';
 import {t, tct} from 'sentry/locale';
 import space from 'sentry/styles/space';
@@ -33,14 +34,16 @@ function MetricsSwitch({onSwitch}: {onSwitch: () => void}) {
     setIsMetricsData(!isMetricsEnhanced);
   }
 
-  return (
-    <Feature features={[FEATURE_FLAG]} organization={organization}>
-      <Label>
-        {t('Metrics Data')}
-        <Switch isActive={isMetricsEnhanced} toggle={handleToggle} size="lg" />
-      </Label>
-    </Feature>
-  );
+  return null;
+
+  // return (
+  //   <Feature features={[FEATURE_FLAG]} organization={organization}>
+  //     <Label>
+  //       {t('Metrics Data')}
+  //       <Switch isActive={isMetricsEnhanced} toggle={handleToggle} size="lg" />
+  //     </Label>
+  //   </Feature>
+  // );
 }
 
 const checkQueryMEPSable = (_: Location, eventView?: EventView) => {
@@ -76,15 +79,17 @@ export type MetricSwitchContextType = {
   isMetricsEnhanced: boolean;
   hasMEPSChanged: boolean;
   eventView?: EventView;
+  isQueryMEPS?: boolean;
   setIsMetricsData: (a: boolean) => void;
   setEventView: (e: EventView) => void;
   setQueryMEPS: (a: boolean) => void;
 };
 const MetricsSwitchContext = createContext<MetricSwitchContextType>({
   isMetricsData: false,
-  isMetricsEnhanced: false,
+  isMetricsEnhanced: true,
   hasMEPSChanged: false,
   eventView: undefined,
+  isQueryMEPS: undefined,
   setIsMetricsData: (_isMetricsData: boolean) => {},
   setEventView: (_isMetricsData: EventView) => {},
   setQueryMEPS: (_: boolean) => {},
@@ -117,7 +122,8 @@ function MetricsSwitchContextContainer({
     previousMEPS !== null && isQueryMEPS !== null && !isEqual(isQueryMEPS, previousMEPS);
 
   const [isMetricsEnhanced, setIsMetricsEnhanced] = useState(
-    decodeScalar(location.query.metricsEnhanced) === 'true'
+    true
+    // decodeScalar(location.query.metricsEnhanced) === 'true'
   );
 
   function handleSetIsMetricsData(value: boolean) {
@@ -149,12 +155,29 @@ function MetricsSwitchContextContainer({
         isMetricsEnhanced,
         hasMEPSChanged,
         eventView,
+        isQueryMEPS,
         setEventView,
         setQueryMEPS,
       }}
     >
       {children}
     </MetricsSwitchContext.Provider>
+  );
+}
+
+function MEPSPill() {
+  const {isQueryMEPS} = useMetricsSwitch();
+
+  if (isQueryMEPS) {
+    return null;
+  }
+  return (
+    <Tag
+      type="default"
+      tooltipText="The search conditions applied are only applicable to sampled transaction data. To edit sampling, to to settings."
+    >
+      {'Sampled'}
+    </Tag>
   );
 }
 
@@ -165,33 +188,33 @@ function useMetricsSwitch() {
 }
 
 function MEPSAlert() {
-  const {hasMEPSChanged} = useMetricsSwitch();
-
-  if (hasMEPSChanged) {
-    return (
-      <Alert type="info" icon={<IconUpgrade />}>
-        <Content>
-          {tct(
-            `We've automatically adjusted your visualizations to reflect a sampled set of transactions. To adjust sampling filters, go to [link:settings] `,
-            {
-              link: (
-                <Button
-                  priority="link"
-                  size="zero"
-                  title={t('Sampling Settings')}
-                  onClick={() => {}}
-                >
-                  {t('settings')}
-                </Button>
-              ),
-            }
-          )}
-          <Actions> </Actions>
-        </Content>
-      </Alert>
-    );
-  }
   return null;
+  // const {hasMEPSChanged} = useMetricsSwitch();
+  // if (hasMEPSChanged) {
+  //   return (
+  //     <Alert type="info" icon={<IconUpgrade />}>
+  //       <Content>
+  //         {tct(
+  //           `We've automatically adjusted your visualizations to reflect a sampled set of transactions. To adjust sampling filters, go to [link:settings] `,
+  //           {
+  //             link: (
+  //               <Button
+  //                 priority="link"
+  //                 size="zero"
+  //                 title={t('Sampling Settings')}
+  //                 onClick={() => {}}
+  //               >
+  //                 {t('settings')}
+  //               </Button>
+  //             ),
+  //           }
+  //         )}
+  //         <Actions> </Actions>
+  //       </Content>
+  //     </Alert>
+  //   );
+  // }
+  // return null;
 }
 
 const Content = styled('div')`
@@ -215,4 +238,5 @@ export {
   useMetricsSwitch,
   MetricsSwitchContext,
   MEPSAlert,
+  MEPSPill,
 };
