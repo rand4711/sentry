@@ -70,9 +70,7 @@ class OrganizationEventsV2Endpoint(OrganizationEventsV2EndpointBase):
                 auto_fields=True,
                 auto_aggregations=True,
                 use_aggregate_conditions=True,
-                use_snql=features.has(
-                    "organizations:discover-use-snql", organization, actor=request.user
-                ),
+                use_snql=True,
             )
 
         with self.handle_query_errors():
