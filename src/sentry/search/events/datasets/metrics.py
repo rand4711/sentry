@@ -42,7 +42,6 @@ class MetricsDatasetConfig(DatasetConfig):
             constants.PROJECT_ALIAS: self._project_slug_filter_converter,
             constants.PROJECT_NAME_ALIAS: self._project_slug_filter_converter,
             "event.type": self._event_type_converter,
-            "transaction.duration": self._outlier_filter,
         }
 
     # Query Filters
@@ -90,21 +89,6 @@ class MetricsDatasetConfig(DatasetConfig):
         """Not really a converter, check its transaction, error otherwise"""
         value = search_filter.value.value
         assert value == "transaction"
-        return None
-
-    def _outlier_filter(self, search_filter: SearchFilter) -> None:
-        """Filter for outlier if duration:>15min, else drop it"""
-        value = search_filter.value.value
-
-        if value == 900000 and search_filter.operator == "<":
-            return self.builder.convert_search_filter_to_condition(
-                SearchFilter(
-                    SearchKey("is_duration_outlier"),
-                    "=",
-                    SearchValue("false"),
-                )
-            )
-        raise InvalidSearchQuery()
         return None
 
     @property
