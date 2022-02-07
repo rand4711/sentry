@@ -1070,8 +1070,6 @@ SENTRY_FEATURES = {
     "organizations:performance-ops-breakdown": False,
     # Enable landing improvements for performance
     "organizations:performance-landing-widgets": False,
-    # Enable views for transaction events page in performance
-    "organizations:performance-events-page": False,
     # Enable interpolation of null data points in charts instead of zerofilling in performance
     "organizations:performance-chart-interpolation": False,
     # Enable mobile vitals
