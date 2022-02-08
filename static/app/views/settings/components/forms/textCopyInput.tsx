@@ -44,12 +44,12 @@ type Props = {
    * Text to copy
    */
   children: string;
-  style?: CSSProperties;
   onCopy?: (value: string, event: React.MouseEvent) => void;
   /**
    * Always show the ending of a long overflowing text in input
    */
   rtl?: boolean;
+  style?: CSSProperties;
 };
 
 class TextCopyInput extends React.Component<Props> {
@@ -118,7 +118,7 @@ class TextCopyInput extends React.Component<Props> {
           />
         </OverflowContainer>
         <Clipboard hideUnsupported value={children}>
-          <StyledCopyButton type="button" size="xsmall" onClick={this.handleCopyClick}>
+          <StyledCopyButton type="button" onClick={this.handleCopyClick}>
             <IconCopy />
           </StyledCopyButton>
         </Clipboard>

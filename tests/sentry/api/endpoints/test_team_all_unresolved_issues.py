@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.utils import timezone
 from django.utils.timezone import now
@@ -9,7 +9,7 @@ from sentry.testutils import APITestCase
 from sentry.testutils.helpers.datetime import before_now
 
 
-@freeze_time()
+@freeze_time(datetime(2021, 6, 24, 4, 00))
 class TeamIssueBreakdownTest(APITestCase):
     endpoint = "sentry-api-0-team-all-unresolved-issues"
 
@@ -37,8 +37,6 @@ class TeamIssueBreakdownTest(APITestCase):
         # Should be excluded from initial counts because it has a regressed status without a
         # corresponding resolved status
         group1_7 = self.create_group(project=project1, first_seen=before_now(days=40))
-        # This group is unresolved, but we have a resolved record for it. This should correctly
-        # show up as unresolved in the last bucket.
         group1_8 = self.create_group(
             project=project1, first_seen=before_now(days=40), status=GroupStatus.UNRESOLVED
         )
@@ -171,7 +169,7 @@ class TeamIssueBreakdownTest(APITestCase):
             }
             assert expected == response.data[project.id]
 
-        compare_response(response, project1, [2, 2, 2, 3, 3, 4, 5])
+        compare_response(response, project1, [3, 3, 3, 4, 4, 5, 5])
         compare_response(response, project2, [0, 1, 0, 1, 0, 1, 0])
         compare_response(response, project3, [0, 1, 0, 0, 0, 0, 0])
 

@@ -31,7 +31,6 @@ import Teams from 'sentry/utils/teams';
 import {MutableSearch} from 'sentry/utils/tokenizeSearch';
 import withProjects from 'sentry/utils/withProjects';
 import {transformMetricsToArea} from 'sentry/views/performance/landing/widgets/transforms/transformMetricsToArea';
-import {PerformanceWidgetSetting} from 'sentry/views/performance/landing/widgets/widgetDefinitions';
 
 import Breadcrumb from '../breadcrumb';
 import MetricsSearchBar from '../metricsSearchBar';
@@ -48,18 +47,18 @@ const FRONTEND_VITALS = [WebVital.FCP, WebVital.LCP, WebVital.FID, WebVital.CLS]
 
 type Props = {
   api: Client;
-  location: Location;
   eventView: EventView;
+  isMetricsData: boolean;
+  location: Location;
   organization: Organization;
   projects: Project[];
   router: InjectedRouter;
   vitalName: WebVital;
-  isMetricsData: boolean;
 };
 
 type State = {
-  incompatibleAlertNotice: React.ReactNode;
   error: string | undefined;
+  incompatibleAlertNotice: React.ReactNode;
 };
 
 function getSummaryConditions(query: string) {
@@ -231,7 +230,6 @@ class VitalDetailContent extends Component<Props, State> {
                 {
                   location,
                   fields: [field],
-                  chartSetting: PerformanceWidgetSetting.P75_DURATION_AREA,
                 },
                 p75RequestProps
               );

@@ -3,7 +3,7 @@ import isEqual from 'lodash/isEqual';
 import omitBy from 'lodash/omitBy';
 
 import {addErrorMessage} from 'sentry/actionCreators/indicator';
-import {Client} from 'sentry/api';
+import {Client, ResponseMeta} from 'sentry/api';
 import {getInterval, shouldFetchPreviousPeriod} from 'sentry/components/charts/utils';
 import {DEFAULT_STATS_PERIOD} from 'sentry/constants';
 import {t} from 'sentry/locale';
@@ -20,11 +20,12 @@ const omitIgnoredProps = (props: Props) =>
   omitBy(props, (_value, key) => propNamesToIgnore.includes(key));
 
 export type MetricsRequestRenderProps = {
-  loading: boolean;
-  isLoading: boolean;
-  reloading: boolean;
-  errored: boolean;
   error: string | null;
+  errored: boolean;
+  isLoading: boolean;
+  loading: boolean;
+  pageLinks: string | null;
+  reloading: boolean;
   response: MetricsApiResponse | null;
   responsePrevious: MetricsApiResponse | null;
   tableData?: TableData;
@@ -39,30 +40,32 @@ type DefaultProps = {
 
 type Props = DefaultProps & {
   api: Client;
-  orgSlug: Organization['slug'];
   field: string[];
+  orgSlug: Organization['slug'];
   children?: (renderProps: MetricsRequestRenderProps) => React.ReactNode;
-  project?: Readonly<number[]>;
-  environment?: Readonly<string[]>;
-  statsPeriod?: string;
-  start?: DateString;
+  cursor?: string;
   end?: DateString;
-  query?: string;
+  environment?: Readonly<string[]>;
   groupBy?: string[];
-  orderBy?: string;
-  limit?: number;
-  interval?: string;
-  isDisabled?: boolean;
   /**
    * Transform the response data to be something ingestible by GridEditable tables
    */
   includeTabularData?: boolean;
+  interval?: string;
+  isDisabled?: boolean;
+  limit?: number;
+  orderBy?: string;
+  project?: Readonly<number[]>;
+  query?: string;
+  start?: DateString;
+  statsPeriod?: string | null;
 };
 
 type State = {
-  reloading: boolean;
-  errored: boolean;
   error: string | null;
+  errored: boolean;
+  pageLinks: string | null;
+  reloading: boolean;
   response: MetricsApiResponse | null;
   responsePrevious: MetricsApiResponse | null;
 };
@@ -78,6 +81,7 @@ class MetricsRequest extends React.Component<Props, State> {
     error: null,
     response: null,
     responsePrevious: null,
+    pageLinks: null,
   };
 
   componentDidMount() {
@@ -105,8 +109,17 @@ class MetricsRequest extends React.Component<Props, State> {
   }
 
   baseQueryParams({previousPeriod = false} = {}) {
-    const {project, environment, field, query, groupBy, orderBy, limit, interval} =
-      this.props;
+    const {
+      project,
+      environment,
+      field,
+      query,
+      groupBy,
+      orderBy,
+      limit,
+      interval,
+      cursor,
+    } = this.props;
 
     const {start, end, statsPeriod} = getPeriod({
       period: this.props.statsPeriod,
@@ -121,7 +134,8 @@ class MetricsRequest extends React.Component<Props, State> {
       query: query || undefined,
       groupBy,
       orderBy,
-      limit,
+      per_page: limit,
+      cursor,
       interval: interval ? interval : getInterval({start, end, period: statsPeriod}),
       datasource: getMetricsDataSource(),
     };
@@ -158,9 +172,15 @@ class MetricsRequest extends React.Component<Props, State> {
       reloading: state.response !== null,
       errored: false,
       error: null,
+      pageLinks: null,
     }));
 
-    const promises = [api.requestPromise(this.path, {query: this.baseQueryParams()})];
+    const promises = [
+      api.requestPromise(this.path, {
+        includeAllArgs: true,
+        query: this.baseQueryParams(),
+      }),
+    ];
 
     if (shouldFetchPreviousPeriod({start, end, period: statsPeriod, includePrevious})) {
       promises.push(
@@ -171,8 +191,10 @@ class MetricsRequest extends React.Component<Props, State> {
     }
 
     try {
-      const [response, responsePrevious] = (await Promise.all(promises)) as [
-        MetricsApiResponse,
+      const [[response, _, responseMeta], responsePrevious] = (await Promise.all(
+        promises
+      )) as [
+        [MetricsApiResponse, string | undefined, ResponseMeta | undefined],
         MetricsApiResponse | undefined
       ];
 
@@ -184,6 +206,7 @@ class MetricsRequest extends React.Component<Props, State> {
         reloading: false,
         response,
         responsePrevious: responsePrevious ?? null,
+        pageLinks: responseMeta?.getResponseHeader('Link') ?? null,
       });
     } catch (error) {
       addErrorMessage(error.responseJSON?.detail ?? t('Error loading metrics data'));
@@ -191,24 +214,26 @@ class MetricsRequest extends React.Component<Props, State> {
         reloading: false,
         errored: true,
         error: error.responseJSON?.detail ?? null,
+        pageLinks: null,
       });
     }
   };
 
   render() {
-    const {reloading, errored, error, response, responsePrevious} = this.state;
+    const {reloading, errored, error, response, responsePrevious, pageLinks} = this.state;
     const {children, isDisabled, includeTabularData} = this.props;
 
-    const loading = response === null && !isDisabled;
+    const loading = response === null && !isDisabled && !error;
 
     return children?.({
       loading,
-      isLoading: loading, // loading alias, some components downstream are used to one or the other (because of EventsRequest vs DiscoverQuery)
       reloading,
+      isLoading: loading || reloading, // some components downstream are used to loading/reloading or isLoading that combines both (EventsRequest vs DiscoverQuery)
       errored,
       error,
       response,
       responsePrevious,
+      pageLinks,
       tableData: includeTabularData
         ? transformMetricsResponseToTable({response})
         : undefined,

@@ -10,7 +10,6 @@ import BarChart, {BarChartSeries} from 'sentry/components/charts/barChart';
 import BarChartZoom from 'sentry/components/charts/barChartZoom';
 import MarkLine from 'sentry/components/charts/components/markLine';
 import TransparentLoadingMask from 'sentry/components/charts/transparentLoadingMask';
-import {getTooltipArrow} from 'sentry/components/charts/utils';
 import DiscoverButton from 'sentry/components/discoverButton';
 import Placeholder from 'sentry/components/placeholder';
 import {t} from 'sentry/locale';
@@ -46,21 +45,21 @@ import {Rectangle} from './types';
 import {asPixelRect, findNearestBucketIndex, getRefRect, mapPoint} from './utils';
 
 type Props = {
-  theme: Theme;
-  location: Location;
-  organization: Organization;
-  isLoading: boolean;
-  error: boolean;
-  vital: WebVital;
-  vitalDetails: Vital;
-  summaryData: VitalData | null;
   chartData: HistogramData;
   colors: [string];
+  error: boolean;
   eventView: EventView;
-  min?: number;
-  max?: number;
-  precision?: number;
+  isLoading: boolean;
+  location: Location;
+  organization: Organization;
+  summaryData: VitalData | null;
+  theme: Theme;
+  vital: WebVital;
+  vitalDetails: Vital;
   dataFilter?: DataFilter;
+  max?: number;
+  min?: number;
+  precision?: number;
 };
 
 type State = {
@@ -225,7 +224,7 @@ class VitalCard extends Component<Props, State> {
         <div>
           {hasPerformanceEventsPage ? (
             <Button
-              size="small"
+              size="xsmall"
               to={newEventView
                 .withColumns([{kind: 'field', field: column}])
                 .withSorts([{kind: 'desc', field: column}])
@@ -242,7 +241,7 @@ class VitalCard extends Component<Props, State> {
             </Button>
           ) : (
             <DiscoverButton
-              size="small"
+              size="xsmall"
               to={newEventView.getResultsViewUrlTarget(organization.slug)}
               onClick={this.trackOpenInDiscoverClicked}
             >
@@ -478,7 +477,7 @@ class VitalCard extends Component<Props, State> {
             `<strong>${t('p75')}</strong>`,
             '</span>',
             '</div>',
-            getTooltipArrow(),
+            '<div class="tooltip-arrow"></div>',
           ].join('');
         },
       },

@@ -28,7 +28,7 @@ import {
 } from '../filter';
 import PageLayout, {ChildProps} from '../pageLayout';
 import Tab from '../tabs';
-import {ZOOM_END, ZOOM_START} from '../transactionOverview/latencyChart';
+import {ZOOM_END, ZOOM_START} from '../transactionOverview/latencyChart/utils';
 
 import EventsContent from './content';
 import {
@@ -210,9 +210,9 @@ function generateEventView({
   transactionName,
   isMetricsData,
 }: {
+  isMetricsData: boolean;
   location: Location;
   transactionName: string;
-  isMetricsData: boolean;
 }): EventView {
   const query = decodeScalar(location.query.query, '');
   const conditions = new MutableSearch(query);
