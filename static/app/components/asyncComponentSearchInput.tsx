@@ -10,8 +10,8 @@ import {isRenderFunc} from 'sentry/utils/isRenderFunc';
 import Input from 'sentry/views/settings/components/forms/controls/input';
 
 type RenderProps = {
-  defaultSearchBar: React.ReactNode;
   busy: boolean;
+  defaultSearchBar: React.ReactNode;
   handleChange: (value: string) => void;
   value: string;
 };
@@ -25,10 +25,10 @@ function DefaultSearchBar({
   query,
 }: {
   busy: boolean;
-  handleSubmit: React.FormEventHandler<HTMLFormElement>;
   handleInputChange: React.ChangeEventHandler<HTMLInputElement>;
-  query: string;
+  handleSubmit: React.FormEventHandler<HTMLFormElement>;
   placeholder: string;
+  query: string;
   className?: string;
 }): React.ReactElement {
   return (
@@ -45,34 +45,35 @@ function DefaultSearchBar({
 }
 
 export interface AsyncComponentSearchInputProps extends WithRouterProps {
+  // optional, otherwise app/views/settings/organizationMembers/organizationMembersList.tsx L:191 is not happy
+  api: Client;
+  onError: () => void;
+
+  onSuccess: (data: object, resp: ResponseMeta | undefined) => void;
   /**
    * Placeholder text in the search input
    */
   placeholder: string;
   /**
-   * Time in milliseconds to wait before firing off the request
-   */
-  debounceWait?: number; // optional, otherwise app/views/settings/organizationMembers/organizationMembersList.tsx L:191 is not happy
-
-  api: Client;
-  className?: string;
-  /**
    * URL to make the search request to
    */
   url: string;
   /**
-   * Updates URL with search query in the URL param: `query`
-   */
-  updateRoute?: boolean;
-
-  onSearchSubmit?: (query: string, event: React.FormEvent) => void;
-  onSuccess: (data: object, resp: ResponseMeta | undefined) => void;
-  onError: () => void;
-
-  /**
    * A render-prop child may be passed to handle custom rendering of the input.
    */
   children?: (otps: RenderProps) => React.ReactElement;
+
+  className?: string;
+  /**
+   * Time in milliseconds to wait before firing off the request
+   */
+  debounceWait?: number;
+  onSearchSubmit?: (query: string, event: React.FormEvent) => void;
+
+  /**
+   * Updates URL with search query in the URL param: `query`
+   */
+  updateRoute?: boolean;
 }
 
 function AsyncComponentSearchInput({
@@ -89,7 +90,7 @@ function AsyncComponentSearchInput({
   location,
   children,
 }: AsyncComponentSearchInputProps): React.ReactElement {
-  const [state, setState] = React.useState<{query: string; busy: boolean}>({
+  const [state, setState] = React.useState<{busy: boolean; query: string}>({
     query: '',
     busy: false,
   });
@@ -206,7 +207,7 @@ function AsyncComponentSearchInput({
 /**
  * This is a search input that can be easily used in AsyncComponent/Views.
  *
- * It probably doesn't make too much sense outside of an AsyncComponent atm.
+ * It probably doesn't make too much sense outside of an AsyncComponent at the moment.
  */
 
 const StyledLoadingIndicator = styled(LoadingIndicator)`
