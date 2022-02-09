@@ -193,10 +193,13 @@ export type EventsGeoData = {count: number; 'geo.country_code': string}[];
 export type EventsStats = {
   data: EventsStatsData;
   end?: number;
+  meta?: EventsStatsMeta;
   order?: number;
   start?: number;
   totals?: {count: number};
 };
+
+export type EventsStatsMeta = Record<string, string> | undefined;
 
 // API response format for multiple series
 export type MultiSeriesEventsStats = {

@@ -15,6 +15,7 @@ import {
   DateString,
   EventsStats,
   EventsStatsData,
+  EventsStatsMeta,
   MultiSeriesEventsStats,
   OrganizationSummary,
 } from 'sentry/types';
@@ -48,6 +49,7 @@ type LoadingStatus = {
 export type RenderProps = LoadingStatus &
   TimeSeriesData & {
     results?: Series[]; // Chart with multiple series.
+    seriesMeta?: Record<string, EventsStatsMeta>;
   };
 
 type DefaultProps = {
@@ -420,7 +422,7 @@ class EventsRequest extends React.PureComponent<EventsRequestProps, EventsReques
   }
 
   processData(response: EventsStats, seriesIndex: number = 0, seriesName?: string) {
-    const {data, totals} = response;
+    const {data, meta, totals} = response;
     const {
       includeTransformedData,
       includeTimeAggregation,
@@ -466,6 +468,7 @@ class EventsRequest extends React.PureComponent<EventsRequestProps, EventsReques
         : undefined;
     return {
       data: transformedData,
+      meta,
       comparisonData: transformedComparisonData,
       allData: data,
       originalData: current,
@@ -493,23 +496,33 @@ class EventsRequest extends React.PureComponent<EventsRequestProps, EventsReques
       // As the server will have replied with a map like:
       // {[titleString: string]: EventsStats}
       let timeframe: {end: number; start: number} | undefined = undefined;
+      const seriesMeta: Record<string, EventsStatsMeta> = {};
       const sortedTimeseriesData = Object.keys(timeseriesData)
-        .map((seriesName: string, index: number): [number, Series, Series | null] => {
-          const seriesData: EventsStats = timeseriesData[seriesName];
-          const processedData = this.processData(
-            seriesData,
-            index,
-            stripEquationPrefix(seriesName)
-          );
-          if (!timeframe) {
-            timeframe = processedData.timeframe;
+        .map(
+          (
+            seriesName: string,
+            index: number
+          ): [number, Series, Series | null, EventsStatsMeta] => {
+            const seriesData: EventsStats = timeseriesData[seriesName];
+            const processedData = this.processData(
+              seriesData,
+              index,
+              stripEquationPrefix(seriesName)
+            );
+            if (!timeframe) {
+              timeframe = processedData.timeframe;
+            }
+            if (processedData.meta) {
+              seriesMeta[seriesName] = processedData.meta;
+            }
+            return [
+              seriesData.order || 0,
+              processedData.data[0],
+              processedData.previousData,
+              processedData.meta,
+            ];
           }
-          return [
-            seriesData.order || 0,
-            processedData.data[0],
-            processedData.previousData,
-          ];
-        })
+        )
         .sort((a, b) => a[0] - b[0]);
       const results: Series[] = sortedTimeseriesData.map(item => {
         return item[1];
@@ -530,6 +543,7 @@ class EventsRequest extends React.PureComponent<EventsRequestProps, EventsReques
         results,
         timeframe,
         previousTimeseriesData,
+        seriesMeta,
         // sometimes we want to reference props that were given to EventsRequest
         ...props,
       });
@@ -545,13 +559,18 @@ class EventsRequest extends React.PureComponent<EventsRequestProps, EventsReques
         previousData: previousTimeseriesData,
         timeAggregatedData,
         timeframe,
+        meta,
       } = this.processData(timeseriesData);
+
+      const seriesMeta = {[this.props.currentSeriesNames?.[0] ?? 'current']: meta};
 
       return children({
         loading,
         reloading,
         errored,
         errorMessage,
+        // meta data,
+        seriesMeta,
         // timeseries data
         timeseriesData: transformedTimeseriesData,
         comparisonTimeseriesData: transformedComparisonTimeseriesData,
