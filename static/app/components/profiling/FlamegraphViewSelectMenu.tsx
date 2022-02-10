@@ -2,10 +2,10 @@ import Button from 'sentry/components/button';
 import ButtonBar from 'sentry/components/buttonBar';
 
 interface FlamegraphViewSelectMenuProps {
-  view: 'top down' | 'bottom up';
-  sorting: 'call order' | 'left heavy';
-  onViewChange: (view: FlamegraphViewSelectMenuProps['view']) => void;
   onSortingChange: (sorting: FlamegraphViewSelectMenuProps['sorting']) => void;
+  onViewChange: (view: FlamegraphViewSelectMenuProps['view']) => void;
+  sorting: 'call order' | 'left heavy';
+  view: 'top down' | 'bottom up';
 }
 
 function FlamegraphViewSelectMenu({
